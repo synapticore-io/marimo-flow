@@ -9,8 +9,15 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 import mlflow
+import torch
+from pina.label_tensor import LabelTensor
 from pina.solver import PINN, SupervisedSolver
 from pina.trainer import Trainer
+
+# torch >= 2.6 flips torch.load's default to weights_only=True. PINA checkpoints
+# embed LabelTensor instances, so mlflow.pytorch autolog's model reload fails to
+# unpickle them unless the class is allowlisted. Registering it is idempotent.
+torch.serialization.add_safe_globals([LabelTensor])
 
 _UNSET = object()
 _FALLBACK_LIGHTNING_ROOT = Path("data") / "mlflow" / "lightning"
