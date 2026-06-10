@@ -178,7 +178,7 @@ def _problem_3d_view(mo, store, picker):
         view_md = mo.md("_No stored problem compositions to visualise yet._")
     else:
         payload_rows = store.query(
-            "SELECT payload FROM preset_problems WHERE name = ? AND status = 'active'",
+            "SELECT spec_json FROM preset_problems WHERE name = ? AND status = 'active'",
             [picker.value],
         )
         if not payload_rows:
@@ -188,7 +188,7 @@ def _problem_3d_view(mo, store, picker):
             from marimo_flow.agents.services.composer import compose_problem
             from marimo_flow.core.viz3d import domain_figure
 
-            spec_dict = payload_rows[0]["payload"]
+            spec_dict = payload_rows[0]["spec_json"]
             if isinstance(spec_dict, str):
                 import json
 
