@@ -33,8 +33,9 @@ def test_default_layout_uses_data_mlflow_no_mlruns(tmp_path, monkeypatch):
     assert (tmp_path / "data" / "mlflow" / "artifacts").is_dir()
     # 3. CWD does NOT contain ./mlruns/ — that's the legacy Default-Experiment
     #    fallback we're moving away from.
-    assert not (tmp_path / "mlruns").exists(), \
+    assert not (tmp_path / "mlruns").exists(), (
         f"./mlruns/ leaked: {sorted(p.name for p in tmp_path.iterdir())}"
+    )
 
     # 4. A logged run lands under data/mlflow/artifacts/<run_id>/artifacts.
     with mlflow.start_run(run_name="layout-check") as run:
@@ -46,9 +47,7 @@ def test_default_layout_uses_data_mlflow_no_mlruns(tmp_path, monkeypatch):
     # 5. The marimo-flow experiment was registered (not the Default one).
     exp = mlflow.get_experiment(run.info.experiment_id)
     assert exp.name == "marimo-flow"
-    assert exp.artifact_location.replace("\\", "/").endswith(
-        "/data/mlflow/artifacts"
-    )
+    assert exp.artifact_location.replace("\\", "/").endswith("/data/mlflow/artifacts")
 
 
 def test_remote_uri_skips_local_layout(tmp_path, monkeypatch):
@@ -70,9 +69,7 @@ def test_explicit_local_db_path_also_triggers_layout(tmp_path, monkeypatch):
     recognised as the local default and gets the layout treatment."""
     monkeypatch.chdir(tmp_path)
     target = (tmp_path / "data" / "mlflow" / "db" / "mlflow.db").resolve()
-    monkeypatch.setenv(
-        "MLFLOW_TRACKING_URI", f"sqlite:///{target.as_posix()}"
-    )
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", f"sqlite:///{target.as_posix()}")
 
     from marimo_flow.agents.lead import _ensure_tracking_uri
 

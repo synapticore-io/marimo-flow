@@ -77,7 +77,7 @@ Layout (SPEC-driven):
 - `toolsets/` — `problem`, `model`, `solver`, `training`, `validation`,
   `data`, `design`, `control`, `curator`, `skills`, `lead`. Each is
   a `FunctionToolset[FlowDeps]` singleton.
-- `services/` — `ProvenanceStore` (DuckDB, 13 tables), orchestrator
+- `services/` — `ProvenanceStore` (DuckDB, 16 tables), orchestrator
   policy helpers, experiment lifecycle, `composer`, `mesh_domain`,
   `design`, `preset_catalog`.
 - `nodes/` — one module per graph node. `triage` builds a `TaskSpec` from
@@ -86,9 +86,15 @@ Layout (SPEC-driven):
   on every dispatch and short-circuits to `End` on escalate/reject verdicts.
 
 Infrastructure:
-- Orchestration: `pydantic-graph` (Graph + BaseNode + GraphRunContext)
-- Persistence + tracing: MLflow (`mlflow.pytorch.autolog()`; pydantic-ai
-  autolog is opt-in via `MLFLOW_PYDANTIC_AI_AUTOLOG=1` until mlflow >= 3.11.2)
+- Orchestration: `pydantic-graph` builder API — `GraphBuilder` registers the
+  v1 `BaseNode` subclasses as-is via `g.node(...)` (`BaseNode`/`End`/
+  `GraphRunContext` survive into pydantic-graph v2; only the legacy `Graph`
+  runner + its persistence machinery were deprecated). `build_graph()` returns
+  a builder `Graph`; `agents.runner.run_graph()` drives it (`graph.run` /
+  `graph.iter`) and logs FlowState snapshots to MLflow under `agent_state/`.
+- Persistence + tracing: MLflow (`mlflow.pytorch.autolog()` +
+  `mlflow.pydantic_ai.autolog()` on by default since mlflow >= 3.11.2 fixed
+  the circular-ref crash; opt out with `MLFLOW_PYDANTIC_AI_AUTOLOG=0`)
 - Provenance: DuckDB at `./provenance.duckdb` (configurable via
   `MARIMO_FLOW_PROVENANCE_DB` or `config.yaml`'s `provenance.db_path`).
   DuckDB 1.5.2 ships transitively via `marimo[sql]` — no extra project dep.
@@ -97,8 +103,9 @@ Infrastructure:
   model, solver, training, validation, mlflow, lead).
 - Each sub-agent loads its skill from `.claude/Skills/<name>/SKILL.md` via
   `build_skill_instructions()` — lazy, no message-history bloat.
-- Lead agent (`build_lead_agent`) exposed three ways: `mo.ui.chat`,
-  `agent.to_a2a()`, `agent.to_ag_ui()`. `run_pina_workflow` wraps every
+- Lead agent (`build_lead_agent`) exposed three ways: `mo.ui.chat`, an A2A
+  server (`fasta2a.pydantic_ai.agent_to_a2a`), and an AG-UI server (bare
+  Starlette + `AGUIAdapter.dispatch_request`). `run_pina_workflow` wraps every
   graph run in an `ExperimentRecord` (running → completed / failed).
 - `FlowState` holds MLflow URIs **and** the typed specs; live
   PINA/torch objects live in `FlowDeps.registry` keyed by URI.
@@ -106,7 +113,7 @@ Infrastructure:
   `model_dump(mode="json")` so snapshots round-trip through JSON.
 
 Testing:
-- `tests/agents/test_*.py` — 216 passing, 1 xfailed (baseline 2026-04-25).
+- `tests/agents/test_*.py` — 225 passing, 0 xfailed (baseline 2026-06-10).
 - `test_demos_compose.py` smoke-tests the notebook spec paths so
   schema drift breaks the test suite, not the user-facing demos.
 - Nodes that use MCP toolsets (Notebook, MLflow): stub `build_*_mcp` with

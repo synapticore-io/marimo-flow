@@ -67,9 +67,7 @@ def _(chat_fn, mo):
 
 @app.cell
 def _(graph, mo):
-    from marimo_flow.agents.nodes.route import RouteNode
-
-    mo.mermaid(graph.mermaid_code(start_node=RouteNode))
+    mo.mermaid(graph.render())
     return
 
 

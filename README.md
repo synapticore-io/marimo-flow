@@ -183,7 +183,7 @@ marimo-flow/
 │       ├── toolsets/             # FunctionToolset per role
 │       └── services/             # composer, mesh_domain, design,
 │                                 #   provenance (DuckDB, 16 tables)
-├── tests/                        # 226 passing, 1 xfailed
+├── tests/                        # 225 passing, 0 xfailed
 ├── docker/                       # Dockerfiles + compose (CPU/CUDA/XPU)
 ├── docs/                         # Project documentation (see docs/INDEX.md)
 └── data/mlflow/                  # MLflow storage (db + artifacts)
@@ -254,7 +254,7 @@ development setup, code standards, and the PR process.
 ```bash
 # Quick path
 git checkout -b my-feature
-uv run pytest                         # 226 passing
+uv run pytest                         # 225 passing
 uv run ruff format . && uv run ruff check --fix .
 # open a PR
 ```

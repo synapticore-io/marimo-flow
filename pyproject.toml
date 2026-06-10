@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "marimo-flow"
 version = "0.3.1"
-description = "Reactive marimo notebooks for ML with MLflow tracking, PINA physics-informed neural networks, and a multi-agent team on pydantic-graph + Ollama Cloud."
+description = "Agentic scientific-computing platform: a reactive multi-agent team orchestrating PINA physics-informed neural-network workflows via pydantic-graph, with MLflow tracing/provenance and a marimo chat UI."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -14,6 +14,9 @@ authors = [
     {name = "Björn Bethge", email = "helloworld@synapticore.io"},
 ]
 keywords = [
+    "agentic-ai",
+    "multi-agent",
+    "scientific-computing",
     "marimo",
     "mlflow",
     "pina",
@@ -122,6 +125,11 @@ extend-exclude = [".claude/Skills/*/examples"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# typer's API is built on function-call defaults (Option/Argument); this is
+# the intended pattern, not the B008 mutable-default footgun.
+extend-immutable-calls = ["typer.Option", "typer.Argument"]
 
 [tool.ruff.lint.per-file-ignores]
 # marimo cells render the last bare expression as cell output

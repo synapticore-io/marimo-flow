@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from pydantic_ai.models.test import TestModel
 
 from marimo_flow.agents.server.a2a import build_a2a_app, node_skills
@@ -15,11 +14,6 @@ def test_a2a_app_is_asgi_callable(monkeypatch):
     assert callable(app)
 
 
-@pytest.mark.xfail(
-    reason="Upstream bug: pydantic-ai 1.84 AGUIApp passes on_startup/on_shutdown "
-    "to Starlette, which removed those kwargs. Re-enable when pydantic-ai pins "
-    "compatible Starlette or stops passing them."
-)
 def test_ag_ui_app_is_asgi_callable(monkeypatch):
     monkeypatch.setattr("marimo_flow.agents.lead._ensure_autolog", lambda: None)
     app = build_ag_ui_app(model=TestModel())

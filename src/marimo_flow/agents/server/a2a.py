@@ -7,6 +7,7 @@ can discover what this team can do (one skill per sub-node role).
 from __future__ import annotations
 
 from fasta2a import Skill
+from fasta2a.pydantic_ai import agent_to_a2a
 
 from marimo_flow.agents.deps import FlowDeps
 from marimo_flow.agents.lead import build_lead_agent
@@ -74,7 +75,8 @@ def build_a2a_app(
     debug: bool = False,
 ):
     agent = build_lead_agent(model=model, deps=deps)
-    return agent.to_a2a(
+    return agent_to_a2a(
+        agent,
         name=name,
         description=description,
         version=version,
