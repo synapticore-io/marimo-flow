@@ -16,8 +16,7 @@ import pytest
 from pydantic_ai.models.test import TestModel
 
 from marimo_flow.agents.deps import FlowDeps
-from marimo_flow.agents.graph import build_graph, start_node
-from marimo_flow.agents.persistence import MLflowStatePersistence
+from marimo_flow.agents.runner import run_graph
 from marimo_flow.agents.schemas import TaskSpec
 from marimo_flow.agents.state import FlowState
 
@@ -127,7 +126,6 @@ async def test_full_workflow_reaches_end(tmp_mlflow, monkeypatch):
         _make_fake_register_artifact("training"),
     )
 
-    graph = build_graph()
     # Pre-populate task_spec so TriageNode fast-paths to RouteNode
     # without needing a live triage LLM in the test.
     state = FlowState(
@@ -144,13 +142,9 @@ async def test_full_workflow_reaches_end(tmp_mlflow, monkeypatch):
         ),
     )
     deps = FlowDeps(provenance_db_path=":memory:")
-    persistence = MLflowStatePersistence(run_id=tmp_mlflow)
-    persistence.set_graph_types(graph)
 
-    result = await graph.run(
-        start_node(), state=state, deps=deps, persistence=persistence
-    )
-    assert "done" in result.output.lower() or "trained" in result.output.lower()
+    result = await run_graph(state, deps, snapshot_run_id=tmp_mlflow)
+    assert "done" in result.lower() or "trained" in result.lower()
 
     client = mlflow.MlflowClient()
     artifacts = {a.path for a in client.list_artifacts(tmp_mlflow)}

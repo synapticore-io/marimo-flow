@@ -62,7 +62,7 @@ def _ensure_local_layout(uri: str) -> None:
     ``./mlruns/`` fallback.
     """
     global _LAYOUT_PREPARED
-    if _LAYOUT_PREPARED == uri or not _looks_like_local_default(uri):
+    if uri == _LAYOUT_PREPARED or not _looks_like_local_default(uri):
         return
 
     layout = Path(DEFAULT_MLFLOW_LAYOUT_ROOT).resolve()
@@ -114,17 +114,17 @@ __all__ = [
 def _ensure_autolog() -> None:
     """Enable MLflow autologging for the team.
 
-    `mlflow.pydantic_ai.autolog()` is disabled by default because mlflow
-    3.11.1 (latest PyPI release) raises `ValueError: Circular reference
-    detected` in `dump_span_attribute_value` when used with pydantic-ai
-    >= 1.80 — fix merged upstream in mlflow#22693 (2026-04-21) but not
-    yet released. Opt back in via `MLFLOW_PYDANTIC_AI_AUTOLOG=1` once
-    mlflow >= 3.11.2 is installed.
+    `mlflow.pydantic_ai.autolog()` traces every nested sub-agent call under
+    the active run. It is on by default: mlflow >= 3.11.2 fixed the
+    `ValueError: Circular reference detected` crash in
+    `dump_span_attribute_value` (mlflow#22693) that earlier releases hit with
+    pydantic-ai >= 1.80 — self-referencing span attributes now fall back to a
+    repr dump instead of raising. Opt out with `MLFLOW_PYDANTIC_AI_AUTOLOG=0`.
     """
     global _AUTOLOG_ENABLED
     if _AUTOLOG_ENABLED:
         return
-    if os.environ.get("MLFLOW_PYDANTIC_AI_AUTOLOG") == "1":
+    if os.environ.get("MLFLOW_PYDANTIC_AI_AUTOLOG") != "0":
         mlflow.pydantic_ai.autolog()
     mlflow.pytorch.autolog()
     _AUTOLOG_ENABLED = True

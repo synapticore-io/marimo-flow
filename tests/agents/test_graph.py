@@ -30,7 +30,7 @@ def test_graph_contains_all_registered_nodes():
             MLflowNode,
         )
     }
-    assert expected.issubset(set(graph.node_defs.keys()))
+    assert expected.issubset(set(graph.nodes.keys()))
 
 
 def test_start_node_is_triage():
@@ -39,7 +39,7 @@ def test_start_node_is_triage():
 
 def test_graph_renders_mermaid():
     graph = build_graph()
-    code = graph.mermaid_code(start_node=TriageNode)
+    code = graph.render()
     assert "TriageNode" in code
     assert "RouteNode" in code
     assert "stateDiagram" in code or "graph" in code.lower()

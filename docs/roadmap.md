@@ -1,6 +1,6 @@
 # Roadmap: beyond the current PINA presets
 
-Last updated: 2026-04-25.
+Last updated: 2026-06-10.
 
 **Status**: **Phases A-0 through F shipped.** Composition-first
 architecture (`services/composer.py::compose_problem`) reaches
@@ -9,7 +9,7 @@ suitable `ProblemSpec`. Inverse problems, mesh geometry, 3D plotly
 viz, design optimisation, stochastic + non-local PDEs, and rolling-
 horizon MPC are all in the repo with tests.
 
-**Test baseline (2026-04-25):** 216 passed, 1 xfailed.
+**Test baseline (2026-06-10):** 225 passed, 0 xfailed.
 
 ## Architecture pivot (2026-04-24)
 
@@ -226,7 +226,7 @@ Tests: `tests/agents/test_control.py` (single-step + rollout),
 ## How to reproduce / verify
 
 ```bash
-# Full test suite — must stay at 216 passed, 1 xfailed
+# Full test suite — must stay at 225 passed, 0 xfailed
 uv run pytest -q
 
 # Smoke-run the new demos outside marimo

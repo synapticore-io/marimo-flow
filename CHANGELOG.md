@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Dependencies refreshed via `uv lock --upgrade`: pydantic-ai-slim / pydantic-graph 1.84 → 1.106, torch 2.11 → 2.12, mlflow 3.11 → 3.13, transformers 5.5 → 5.10, marimo 0.23.1 → 0.23.9, plus transitive bumps. `pyproject.toml` `>=` floors unchanged.
+- **Agent graph migrated to the builder-based `pydantic-graph` API**: `build_graph()` now uses `GraphBuilder`, registering the nine v1 `BaseNode` nodes as-is via `g.node(...)`. New `agents.runner.run_graph` drives the run (`graph.run` / `graph.iter`) and logs `FlowState` snapshots to MLflow under `agent_state/`, replacing the deprecated `BaseNode`-`Graph` runner + its persistence machinery.
+- MCP builders migrated to `MCPToolset` (from deprecated `MCPServerStreamableHTTP` / `MCPServerStdio`); transport assertions now probe `toolset.client.transport`.
+- A2A / AG-UI servers migrated off the deprecated `Agent.to_a2a()` / `Agent.to_ag_ui()`: A2A uses `fasta2a.pydantic_ai.agent_to_a2a`, AG-UI is a bare Starlette app dispatching to `AGUIAdapter.dispatch_request` (the previously-xfailed AG-UI ASGI test now passes).
+- `mlflow.pydantic_ai.autolog()` is on by default — mlflow ≥ 3.11.2 fixed the circular-reference crash (mlflow#22693), now falling back to a repr dump. Opt out with `MLFLOW_PYDANTIC_AI_AUTOLOG=0`.
+- README reframed as an agentic scientific-computing platform; `pyproject.toml` description + keywords and the GitHub repo About/topics updated to match.
+- Cleared pre-existing ruff findings surfaced by the ruff bump (typer `B008` via `extend-immutable-calls`, `SIM300`, `B017`); `ruff check` is clean again.
+
+### Removed
+- `MLflowStatePersistence` (`pydantic-graph` persistence backend) — the builder runner exposes no persistence hook; FlowState snapshotting moved into `agents.runner`.
+
 ## [0.3.1] - 2026-04-28
 
 ### Added

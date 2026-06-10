@@ -71,7 +71,7 @@ def solve(
     level = logging.DEBUG if verbose else logging.WARNING
     logging.basicConfig(level=level, format="%(levelname)s %(name)s: %(message)s")
 
-    from marimo_flow.agents.graph import build_graph, start_node
+    from marimo_flow.agents.runner import run_graph
     from marimo_flow.agents.state import FlowState
 
     deps = FlowDeps()
@@ -89,14 +89,10 @@ def solve(
         f"{intent}\n(Training hints: max_epochs={max_epochs}, n_points={n_points}.)"
     )
     state = FlowState(user_intent=full_intent)
-    graph = build_graph()
 
     async def _run() -> str:
         try:
-            result = await asyncio.wait_for(
-                graph.run(start_node(), state=state, deps=deps), timeout=timeout
-            )
-            return str(result.output)
+            return await asyncio.wait_for(run_graph(state, deps), timeout=timeout)
         finally:
             await deps.aclose()
 

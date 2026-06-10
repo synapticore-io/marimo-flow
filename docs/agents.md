@@ -84,7 +84,7 @@ print(store.query(
 ```
 
 See [`examples/02_provenance_dashboard.py`](../examples/02_provenance_dashboard.py)
-for a marimo review surface over the full DuckDB schema (13 tables).
+for a marimo review surface over the full DuckDB schema (16 tables).
 
 ## Models — provider-agnostic
 

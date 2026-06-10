@@ -1,8 +1,15 @@
-"""Graph assembly — TriageNode is the start, RouteNode dispatches the rest."""
+"""Graph assembly — TriageNode is the start, RouteNode dispatches the rest.
+
+Built on the builder-based `GraphBuilder` API. The v1 `BaseNode` subclasses
+in `nodes/` are registered as-is via `g.node(...)` — `BaseNode`/`End`/
+`GraphRunContext` survive into pydantic-graph v2, only the legacy `Graph`
+runner + its persistence machinery were deprecated.
+"""
 
 from __future__ import annotations
 
-from pydantic_graph import Graph
+from pydantic_graph import GraphBuilder
+from pydantic_graph.graph_builder import Graph
 
 from marimo_flow.agents.deps import FlowDeps
 from marimo_flow.agents.nodes import mlflow_node as _mlflow_node_mod
@@ -26,13 +33,12 @@ from marimo_flow.agents.nodes.validation import ValidationNode
 from marimo_flow.agents.state import FlowState
 
 
-def build_graph() -> Graph[FlowState, FlowDeps, str]:
-    # Inject RouteNode into each specialist module's globals so that
-    # `pydantic_graph.BaseNode.get_node_def` -> `get_type_hints(cls.run)`
-    # can resolve the `-> RouteNode` forward refs. Likewise inject the
-    # specialists into RouteNode's module so its return-type union
-    # resolves. We patch the module namespace at runtime to keep the
-    # source-level `if TYPE_CHECKING:` imports cycle-free.
+def build_graph() -> Graph[FlowState, FlowDeps, TriageNode, str]:
+    # Inject the `if TYPE_CHECKING` forward refs into each node module's
+    # globals so `GraphBuilder.node()` -> `get_type_hints(cls.run)` resolves
+    # the `-> RouteNode` / specialist-union return hints at runtime. The
+    # source-level imports stay behind `TYPE_CHECKING` to keep the module
+    # graph cycle-free.
     for mod in (
         _triage_mod,
         _notebook_mod,
@@ -53,20 +59,28 @@ def build_graph() -> Graph[FlowState, FlowDeps, str]:
         ValidationNode=ValidationNode,
         MLflowNode=MLflowNode,
     )
-    return Graph(
-        nodes=(
-            TriageNode,
-            RouteNode,
-            NotebookNode,
-            ProblemNode,
-            ModelNode,
-            SolverNode,
-            TrainingNode,
-            ValidationNode,
-            MLflowNode,
-        ),
+
+    g = GraphBuilder[FlowState, FlowDeps, TriageNode, str](
+        name="pina-team",
         state_type=FlowState,
+        deps_type=FlowDeps,
+        input_type=TriageNode,
+        output_type=str,
+        auto_instrument=False,
     )
+    g.add(
+        g.edge_from(g.start_node).to(TriageNode),
+        g.node(TriageNode),
+        g.node(RouteNode),
+        g.node(NotebookNode),
+        g.node(ProblemNode),
+        g.node(ModelNode),
+        g.node(SolverNode),
+        g.node(TrainingNode),
+        g.node(ValidationNode),
+        g.node(MLflowNode),
+    )
+    return g.build()
 
 
 def start_node() -> TriageNode:

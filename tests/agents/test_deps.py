@@ -130,7 +130,7 @@ def test_load_config_honours_marimo_flow_config_env(monkeypatch, tmp_path):
 
 def test_unknown_provider_raises(monkeypatch):
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         get_model("route", override="no-such-provider:foo")
 
 

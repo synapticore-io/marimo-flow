@@ -178,8 +178,7 @@ def _problem_3d_view(mo, store, picker):
         view_md = mo.md("_No stored problem compositions to visualise yet._")
     else:
         payload_rows = store.query(
-            "SELECT payload FROM preset_problems "
-            "WHERE name = ? AND status = 'active'",
+            "SELECT payload FROM preset_problems WHERE name = ? AND status = 'active'",
             [picker.value],
         )
         if not payload_rows:

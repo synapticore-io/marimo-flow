@@ -11,11 +11,12 @@ use — adapted from `marimo-agent/rag_marimo_agent.py:322-340`.
 
 from __future__ import annotations
 
-from pydantic_ai.mcp import (
-    MCPServerSSE,
-    MCPServerStdio,
-    MCPServerStreamableHTTP,
+from fastmcp.client.transports import (
+    SSETransport,
+    StdioTransport,
+    StreamableHttpTransport,
 )
+from pydantic_ai.mcp import MCPToolset
 
 DEFAULT_MARIMO_MCP_URL = "http://127.0.0.1:2718/mcp/server"
 
@@ -24,33 +25,33 @@ def build_marimo_mcp(
     url: str = DEFAULT_MARIMO_MCP_URL,
     *,
     startup_timeout: float = 30.0,
-) -> MCPServerStreamableHTTP:
-    """Build the marimo MCP streamable-HTTP client.
+) -> MCPToolset:
+    """Build the marimo MCP streamable-HTTP toolset.
 
-    ``startup_timeout`` widens the handshake window from pydantic-ai's default
-    of 5s — marimo's ``--mcp`` endpoint can take a few seconds to register
-    tools when a notebook has many cells.
+    ``startup_timeout`` widens the handshake window from FastMCP's default —
+    marimo's ``--mcp`` endpoint can take a few seconds to register tools when
+    a notebook has many cells.
     """
-    return MCPServerStreamableHTTP(url=url, timeout=startup_timeout)
+    return MCPToolset(StreamableHttpTransport(url=url), init_timeout=startup_timeout)
 
 
 def build_mlflow_mcp(
     tracking_uri: str = "sqlite:///data/mlflow/db/mlflow.db",
     *,
     startup_timeout: float = 60.0,
-) -> MCPServerStdio:
-    """Build the MLflow MCP stdio server.
+) -> MCPToolset:
+    """Build the MLflow MCP stdio toolset.
 
     ``startup_timeout`` is the handshake window for ``mlflow mcp run``. MLflow
     initialises the store on startup (SQLite migrations, plugin loading) which
-    can exceed the pydantic-ai default of 5s on a cold run.
+    can exceed FastMCP's default on a cold run.
     """
-    return MCPServerStdio(
+    transport = StdioTransport(
         command="mlflow",
         args=["mcp", "run"],
         env={"MLFLOW_TRACKING_URI": tracking_uri},
-        timeout=startup_timeout,
     )
+    return MCPToolset(transport, init_timeout=startup_timeout)
 
 
 def build_mcp_servers(
@@ -59,14 +60,14 @@ def build_mcp_servers(
     cmd: str = "deno",
     args: str = "",
     url: str = "",
-) -> list:
+) -> list[MCPToolset]:
     if transport == "disabled":
         return []
     if transport == "stdio":
         arg_list = [a for a in args.split(" ") if a]
-        return [MCPServerStdio(command=cmd, args=arg_list)]
+        return [MCPToolset(StdioTransport(command=cmd, args=arg_list))]
     if transport == "sse":
-        return [MCPServerSSE(url=url)]
+        return [MCPToolset(SSETransport(url=url))]
     if transport == "streamable-http":
-        return [MCPServerStreamableHTTP(url=url)]
+        return [MCPToolset(StreamableHttpTransport(url=url))]
     raise ValueError(f"unknown transport: {transport!r}")
