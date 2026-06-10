@@ -28,11 +28,19 @@ https://github.com/user-attachments/assets/3bc24463-ff42-44a7-ae61-5d500d29688c
 
 ## What is marimo-flow? 🚀
 
-**Reactive marimo notebooks for physics-informed ML.**
-A composition-first PINA stack with MLflow tracking, plus an optional
-multi-agent team that drives PINA workflows end-to-end. Reactive
-dataflow, MCP-powered AI assistance in your notebook, and a Docker
-deployment story for CPU / NVIDIA / Intel GPUs.
+**An agentic scientific-computing platform for physics-informed ML.**
+A reactive multi-agent team orchestrates PINA / PINN workflows
+end-to-end over a `pydantic-graph` state machine — backed by MLflow for
+tracing and persistence, and exposed through marimo's chat UI plus
+optional A2A and AG-UI ASGI servers.
+
+Describe a PDE in natural language; the team composes the Problem,
+designs the network, wires the solver, trains it, and grades the run —
+every handoff typed, logged to MLflow, and indexed in a DuckDB
+provenance store. A classic `marimo_flow.core` API is still there for
+when you'd rather drive PINA by hand. Composition-first throughout: no
+hardcoded PDE factories, plus a Docker deployment story for CPU /
+NVIDIA / Intel GPUs.
 
 ## 🧠 PINA — composition-first (no hardcoded PDE factories)
 
@@ -59,18 +67,66 @@ solvers + training + viz3d), [`src/marimo_flow/control/`](src/marimo_flow/contro
 
 ## Features ✨
 
+- **🧑‍🚀 Multi-agent PINA team** — free-form intent → typed `TaskSpec`
+  → composed `ProblemSpec` / `ModelSpec` / `SolverPlan` → trained
+  surrogate → validation verdict, over a 9-node `pydantic-graph` state
+  machine (see [docs/agents.md](docs/agents.md)).
+- **🔌 Three transports** — in-notebook `mo.ui.chat`, an A2A ASGI
+  server, and an AG-UI ASGI server, all wrapping the same lead agent.
+- **🧩 Provider-agnostic LLMs** — per-role model specs resolved through
+  pydantic-ai's `infer_model`; defaults target Ollama Cloud, any
+  provider in the catalogue works via `config.yaml` / env vars.
+- **🔬 MLflow tracing + DuckDB provenance** — every run, model, and
+  metric tracked under `data/mlflow/{db,artifacts}/`; typed specs,
+  decisions, handoffs, and lineage mirrored into a 16-table DuckDB
+  store. Lightning checkpoints land *inside* the active run.
+- **🧠 Composition-first PINA** — agents compose PDEs from primitives;
+  no hardcoded `ProblemKind` (see below).
 - **📓 Reactive notebooks** — Git-friendly `.py` notebooks with
   automatic dependency tracking.
-- **🔬 MLflow tracking** — every run, model, and metric tracked under
-  `data/mlflow/{db,artifacts}/`. Lightning checkpoints land *inside*
-  the active run.
-- **🤖 MCP-powered AI** — `marimo`, `mlflow`, `context7`, `serena` MCP
+- **🤖 MCP-powered AI** — `marimo`, `mlflow`, and `context7` MCP
   servers wired up; live library docs without leaving your notebook.
 - **🐳 Multi-platform Docker** — CPU, CUDA, Intel XPU images on GHCR.
-- **🧑‍🚀 Optional multi-agent team** — composes PINA workflows from
-  free-form intent (see [docs/agents.md](docs/agents.md)).
 
 ## Quick Start 🏃‍♂️
+
+### Talk to the agent team
+
+The fastest path is the in-notebook chat. The lead agent dispatches to
+the specialist team and streams its answer back:
+
+```python
+from marimo_flow.agents import lead_chat, FlowDeps
+import marimo as mo
+
+deps = FlowDeps()  # resolves per-role models + MLflow URI from config / .env / env vars
+chat = mo.ui.chat(
+    lead_chat(deps=deps),
+    prompts=["Solve a 1D Poisson equation on [0,1] with u(0)=u(1)=0 using a PINN."],
+)
+chat
+```
+
+Defaults target Ollama Cloud (`:cloud` tags via a local Ollama
+endpoint). Copy [`config.yaml.example`](config.yaml.example) to
+`config.yaml` to point any role at OpenAI, Anthropic, Groq, … — auth
+comes from each provider's standard env var.
+
+Prefer a terminal? The CLI runs the same graph:
+
+```bash
+uv run marimo-flow solve "Solve the Burgers equation with a small PINN"
+uv run marimo-flow solve -m lead=anthropic:claude-sonnet-4-6 "..."   # override a role
+uv run marimo-flow config-show        # print the resolved models + URIs
+uv run marimo-flow lab                # open examples/lab.py in marimo
+```
+
+Or expose the team as a standalone ASGI server:
+
+```bash
+uv run python -m marimo_flow.agents.server.a2a     # A2A protocol   → :8000
+uv run python -m marimo_flow.agents.server.ag_ui   # AG-UI protocol → :8001
+```
 
 ### With Docker (Recommended)
 
@@ -126,7 +182,7 @@ marimo-flow/
 │       ├── schemas/              # Typed Pydantic specs (ProblemSpec, …)
 │       ├── toolsets/             # FunctionToolset per role
 │       └── services/             # composer, mesh_domain, design,
-│                                 #   provenance (DuckDB, 13 tables)
+│                                 #   provenance (DuckDB, 16 tables)
 ├── tests/                        # 226 passing, 1 xfailed
 ├── docker/                       # Dockerfiles + compose (CPU/CUDA/XPU)
 ├── docs/                         # Project documentation (see docs/INDEX.md)
@@ -145,23 +201,25 @@ packages do not depend on each other — pick whichever matches the task.
 
 ## PINA Multi-Agent Team 🧑‍🚀
 
-Reactive multi-agent team that **drives PINA workflows end-to-end**:
-free-form intent → typed `TaskSpec` → composed `ProblemSpec` →
-trained surrogate → validation verdict, all logged to MLflow + a
+The team **drives PINA workflows end-to-end** — it doesn't just answer
+questions. Free-form intent → typed `TaskSpec` → composed `ProblemSpec`
+→ trained surrogate → validation verdict, all logged to MLflow + a
 DuckDB provenance store.
 
-```python
-from marimo_flow.agents import lead_chat, FlowDeps
-import marimo as mo
-
-deps = FlowDeps()
-chat = mo.ui.chat(lead_chat(deps=deps))
-chat
+```
+TriageNode → RouteNode ─┬─ ProblemNode
+                        ├─ ModelNode
+                        ├─ SolverNode
+                        ├─ TrainingNode
+                        ├─ ValidationNode → (accept/retry/escalate/reject)
+                        ├─ MLflowNode
+                        └─ NotebookNode
 ```
 
-Nine graph nodes (`pydantic-graph`), provider-agnostic LLM config,
-and three transport options (in-notebook chat, A2A server, AG-UI
-server).
+Nine graph nodes (`pydantic-graph`), one toolset + skill per role,
+provider-agnostic LLM config, and three transport options (in-notebook
+chat, A2A server, AG-UI server). See the [Quick Start](#talk-to-the-agent-team)
+for the chat / CLI / server entry points.
 
 → Full architecture, role list, provenance schema, and config docs in
 **[docs/agents.md](docs/agents.md)**.
