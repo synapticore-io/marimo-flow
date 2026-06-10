@@ -16,6 +16,7 @@ module-level `FunctionToolset[FlowDeps]` — the agent consumes it via
 from __future__ import annotations
 
 import os
+import warnings
 from pathlib import Path
 
 import mlflow
@@ -120,12 +121,27 @@ def _ensure_autolog() -> None:
     `dump_span_attribute_value` (mlflow#22693) that earlier releases hit with
     pydantic-ai >= 1.80 — self-referencing span attributes now fall back to a
     repr dump instead of raising. Opt out with `MLFLOW_PYDANTIC_AI_AUTOLOG=0`.
+
+    ``silent=True`` mutes mlflow 3.13's pydantic-ai integration noise against
+    pydantic-ai 1.106 — a one-time `Error importing pydantic_ai._tool_manager`
+    (ToolManager moved upstream; only the ToolManager span-type label is lost,
+    tracing is otherwise intact) plus `Agent(instrument=...)` / `usage()`
+    deprecation warnings emitted from mlflow's own autolog code. Drop it once
+    mlflow's integration catches up to pydantic-ai 1.10x.
     """
     global _AUTOLOG_ENABLED
     if _AUTOLOG_ENABLED:
         return
     if os.environ.get("MLFLOW_PYDANTIC_AI_AUTOLOG") != "0":
-        mlflow.pydantic_ai.autolog()
+        # mlflow's patched Agent.__init__ passes the deprecated `instrument=`
+        # kwarg to pydantic-ai 1.106; `silent=True` mutes mlflow's wrapped logs
+        # but this raw warning still escapes. We never pass `instrument=`
+        # ourselves, so the message-scoped filter only hits mlflow's trigger.
+        warnings.filterwarnings(
+            "ignore",
+            message=r".*`Agent\(instrument=\.\.\.\)` is deprecated.*",
+        )
+        mlflow.pydantic_ai.autolog(silent=True)
     mlflow.pytorch.autolog()
     _AUTOLOG_ENABLED = True
 
