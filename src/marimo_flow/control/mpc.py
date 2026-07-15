@@ -7,7 +7,7 @@ from collections.abc import Callable
 import numpy as np
 from scipy.optimize import minimize
 
-from marimo_flow.agents.schemas import ControlPlan
+from marimo_flow.agents.schemas.control import ControlPlan
 
 SurrogateFn = Callable[[np.ndarray, np.ndarray], np.ndarray]
 """Signature: ``surrogate(state_now, controls_over_horizon) -> state_trajectory``

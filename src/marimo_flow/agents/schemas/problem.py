@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from marimo_flow.agents.schemas.control import ControlParameterSpec
 from marimo_flow.agents.schemas.equation import (
     ConditionSpec,
     EquationSpec,
@@ -45,6 +46,9 @@ class ProblemSpec(BaseModel):
       wires each unknown through ``params_`` in the residual.
     * ``observations`` (optional) are data-fitting conditions; each
       becomes a ``Condition(input=…, target=…)`` in the compiled problem.
+    * ``control_parameters`` (optional) declare exogenous MPC inputs such
+      as a boundary temperature ``u``; merged into ``domain_bounds`` and
+      sampled during PINN training.
 
     Multiple entries in ``equations`` coexist without any extra schema —
     multiphysics coupling is just several EquationSpecs that share
@@ -64,6 +68,7 @@ class ProblemSpec(BaseModel):
     subdomains: list[SubdomainSpec] = Field(default_factory=list)
     equations: list[EquationSpec] = Field(default_factory=list)
     conditions: list[ConditionSpec] = Field(default_factory=list)
+    control_parameters: list[ControlParameterSpec] = Field(default_factory=list)
     unknowns: list[UnknownParameterSpec] = Field(default_factory=list)
     observations: list[ObservationSpec] = Field(default_factory=list)
     mesh: MeshSpec | None = Field(

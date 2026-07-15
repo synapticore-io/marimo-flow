@@ -24,6 +24,21 @@ from pydantic import BaseModel, ConfigDict, Field
 MPCSolver = Literal["scipy_slsqp", "cvxpy"]
 
 
+class ControlParameterSpec(BaseModel):
+    """Exogenous parameter wired into a PINA problem (e.g. boundary temperature).
+
+    Declared on ``ProblemSpec.control_parameters`` and merged into
+    ``domain_bounds`` by the composer so collocation samples ``u`` and the
+    network sees it as an input coordinate.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    low: float
+    high: float
+
+
 class ControlVariableSpec(BaseModel):
     """One actuator / control input the MPC may set at each step."""
 

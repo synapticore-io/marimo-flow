@@ -11,6 +11,7 @@ from marimo_flow.agents.schemas.artifacts import (
     DatasetBinding,
 )
 from marimo_flow.agents.schemas.control import (
+    ControlParameterSpec,
     ControlPlan,
     ControlVariableSpec,
     MPCSolver,
@@ -70,6 +71,7 @@ __all__ = [
     "ConditionSpec",
     "ConstraintOp",
     "ConstraintSpec",
+    "ControlParameterSpec",
     "ControlPlan",
     "ControlVariableSpec",
     "DatasetBinding",

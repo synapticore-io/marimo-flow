@@ -9,8 +9,6 @@ tests noticing.
 from __future__ import annotations
 
 import numpy as np
-import torch
-from pina.label_tensor import LabelTensor
 
 from marimo_flow.agents.schemas import (
     ConditionSpec,
@@ -23,7 +21,7 @@ from marimo_flow.agents.schemas import (
     SubdomainSpec,
 )
 from marimo_flow.agents.services.composer import compose_problem
-from marimo_flow.control import run_mpc_step
+from marimo_flow.control import make_rollout_surrogate, run_mpc_step
 
 
 def test_ns3d_cavity_demo_composes():
@@ -67,38 +65,15 @@ def test_ns3d_cavity_demo_composes():
 
 
 def test_heat_rod_demo_composes_and_mpc_step_runs():
-    spec = ProblemSpec(
-        name="heat_rod_1d_demo",
-        output_variables=["T"],
-        domain_bounds={"x": [0.0, 1.0], "t": [0.0, 1.0]},
-        subdomains=[
-            SubdomainSpec(name="D", bounds={"x": [0.0, 1.0], "t": [0.0, 1.0]}),
-            SubdomainSpec(name="t0", bounds={"x": [0.0, 1.0], "t": 0.0}),
-        ],
-        equations=[
-            EquationSpec(
-                name="heat",
-                form="T_t - alpha*T_xx",
-                outputs=["T"],
-                derivatives=[
-                    DerivativeSpec(name="T_t", field="T", wrt=["t"]),
-                    DerivativeSpec(name="T_xx", field="T", wrt=["x", "x"]),
-                ],
-                parameters={"alpha": 0.05},
-            ),
-        ],
-        conditions=[
-            ConditionSpec(subdomain="D", kind="equation", equation_name="heat"),
-            ConditionSpec(subdomain="t0", kind="fixed_value", value=0.0),
-        ],
-    )
-    problem = compose_problem(spec)()
-    assert problem.input_variables == ["x", "t"]
+    from marimo_flow.control.heat_rod import build_heat_rod_problem_spec
 
-    # Surrogate is deterministic, no training — MPC just needs any callable.
-    def surrogate(state, controls):
-        _ = LabelTensor(torch.tensor([[0.5, 0.05]], dtype=torch.float32), ["x", "t"])
-        return np.cumsum(controls, axis=0) * 0.1 + state[0]
+    problem = compose_problem(build_heat_rod_problem_spec(alpha=0.08))()
+    assert set(problem.input_variables or []) == {"x", "t", "u"}
+
+    def predict(t_centre: float, u: float) -> float:
+        return 0.85 * t_centre + 0.15 * u
+
+    surrogate = make_rollout_surrogate(predict)
 
     plan = ControlPlan(
         name="heat_rod_mpc_demo",
