@@ -6,7 +6,7 @@
 [![MLflow](https://img.shields.io/badge/MLflow-Latest-blue?logo=mlflow&logoColor=white)](https://mlflow.org)
 [![MCP](https://img.shields.io/badge/MCP-Enabled-green?logo=anthropic&logoColor=white)](https://docs.marimo.io/guides/editor_features/mcp/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker&logoColor=white)](https://docker.com)
-[![Version](https://img.shields.io/badge/Version-0.3.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-0.4.0-blue.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/synapticore-io/marimo-flow)
 [![Contributing](https://img.shields.io/badge/Contributing-Welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -41,6 +41,49 @@ provenance store. A classic `marimo_flow.core` API is still there for
 when you'd rather drive PINA by hand. Composition-first throughout: no
 hardcoded PDE factories, plus a Docker deployment story for CPU /
 NVIDIA / Intel GPUs.
+
+## Architecture 🏗️
+
+Natural language goes in; a `pydantic-ai` multi-agent team turns it into
+a composed, trained, tracked PINN. PINA, MLflow, and marimo are the three
+backends the team drives:
+
+```
+   Natural language  ("Solve a 1D Poisson equation on [0,1] with u(0)=u(1)=0")
+          │
+          ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  pydantic-ai  ·  multi-agent team                        │
+ │  Triage → Route → Problem · Model · Solver · Training     │
+ │         → Validation → MLflow · Notebook                 │
+ │  (pydantic-graph state machine · typed spec handoffs)    │
+ └─────────────────────────────────────────────────────────┘
+          │                    │                    │
+          ▼                    ▼                    ▼
+       ┌──────┐            ┌────────┐           ┌────────┐
+       │ PINA │            │ MLflow │           │ marimo │
+       └──────┘            └────────┘           └────────┘
+    compose + train      runs · metrics       reactive .py
+    PINNs (PyTorch)      registry · tracing    notebooks · chat
+    Plotly 2D/3D viz     DuckDB provenance     MCP-wired UI
+```
+
+A classic `marimo_flow.core` API drives PINA by hand when you'd rather
+skip the agents — both paths write to the same MLflow backend.
+
+## Stack 🧱
+
+| Layer | Tech | Role in marimo-flow |
+|---|---|---|
+| **Agent runtime** | `pydantic-ai` + `pydantic-graph` | multi-agent orchestration, typed handoffs, 9-node state machine (direct dep — not bundled via marimo) |
+| **Physics ML** | PINA + **PyTorch** | compose & train physics-informed neural networks |
+| **Experiment tracking** | **MLflow** | runs, metrics, model registry, pydantic-ai + PyTorch tracing |
+| **Provenance** | **DuckDB** | 16-table lineage store (`provenance.duckdb`) |
+| **Dataframes** | **Polars** | fast in-notebook data manipulation (over pandas) |
+| **Visualisation** | **Plotly** | 2D/3D fields, meshes, isosurfaces — no pyvista/VTK stack |
+| **Notebook UI** | **marimo** | reactive Git-friendly `.py` notebooks + `mo.ui.chat` |
+| **Tooling protocol** | **MCP** | live docs (context7) + notebook/MLflow introspection |
+| **Deployment** | **Docker** — CPU / CUDA / Intel XPU | GHCR images, per-accelerator compose files |
 
 ## 🧠 PINA — composition-first (no hardcoded PDE factories)
 
@@ -183,7 +226,7 @@ marimo-flow/
 │       ├── toolsets/             # FunctionToolset per role
 │       └── services/             # composer, mesh_domain, design,
 │                                 #   provenance (DuckDB, 16 tables)
-├── tests/                        # 225 passing, 0 xfailed
+├── tests/                        # 232 passing, 0 xfailed
 ├── docker/                       # Dockerfiles + compose (CPU/CUDA/XPU)
 ├── docs/                         # Project documentation (see docs/INDEX.md)
 └── data/mlflow/                  # MLflow storage (db + artifacts)
@@ -232,6 +275,30 @@ and `.vscode/mcp.json` (VS Code / Claude Code).
 
 → Full configuration reference in **[docs/mcp-setup.md](docs/mcp-setup.md)**.
 
+## Claude Code Integration 🤖
+
+marimo-flow is built to be driven from [Claude Code](https://claude.com/claude-code).
+Two integration points work together:
+
+- **marimo MCP server** — start marimo with `--mcp` and Claude Code can
+  introspect the running notebook: list cells, read variables/DataFrames,
+  surface cell errors, and inspect DuckDB/SQL connections.
+
+  ```bash
+  marimo edit examples/ --mcp --no-token --headless --port 2718
+  ```
+
+- **marimo-pair** — the `marimo-claude` plugin's pair-programming skill.
+  It attaches to that same live kernel so Claude Code can *execute code,
+  create cells, and build the notebook as an artifact* interactively —
+  not just read it. Ask Claude to "start a marimo notebook" or "work in
+  the active marimo session" and it drives the kernel directly.
+
+Together they turn a marimo notebook into a shared workspace: Claude
+reads runtime state over MCP and writes cells back through marimo-pair,
+with MLflow + the DuckDB provenance store recording everything the agent
+team produces alongside.
+
 ## Documentation 📚
 
 | File | What's in it |
@@ -254,7 +321,7 @@ development setup, code standards, and the PR process.
 ```bash
 # Quick path
 git checkout -b my-feature
-uv run pytest                         # 225 passing
+uv run pytest                         # 232 passing
 uv run ruff format . && uv run ruff check --fix .
 # open a PR
 ```

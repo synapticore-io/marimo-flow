@@ -1,7 +1,65 @@
+[ai]
+enabled = true
+inline_tooltip = false
+mode = "agent"
+rules = "Use altair for interactive visualizations and plotly express for interactive 3d plots\nPrefer polars over pandas for data manipulation due to better performance\nInclude docstrings for all functions using NumPy style\nUse Type hints for all function parameters and return values\nHandle errors with try/except blocks and provide informative error messages\nFollow PEP 8 style guidelines\nWhen working with data:\n- Use altair, plotly for declarative visualizations\n- Prefer polars over pandas\n- Ensure proper error handling for data operations\nFor plotting:\n- Use px.scatter for scatter plots\n- Use px.line for time series\n- Include proper axis labels and titles\n- Set appropriate color schemes\nIntegrate mlflow features and patterns, polars\n\n"
+
+[ai.anthropic]
+
+[ai.bedrock]
+
+[ai.custom_providers]
+
+[ai.google]
+
+[ai.models]
+autocomplete_model = "ollama/devstral-small-2:24b-cloud"
+chat_model = "ollama/devstral-2:123b-cloud"
+custom_models = []
+displayed_models = ["ollama/devstral-2:123b-cloud", "ollama/devstral-small-2:24b-cloud", "ollama/gpt-oss:120b-cloud", "ollama/gpt-oss:20b-cloud"]
+edit_model = "ollama/devstral-2:123b-cloud"
+
+[ai.ollama]
+api_key = "ollama"
+base_url = "http://localhost:11434/v1"
+model = "gpt-oss:20b-cloud"
+
+[ai.open_ai]
+api_key = "ollama"
+base_url = "http://localhost:11434/v1"
+model = "gpt-oss:120b-cloud"
+
+[ai.open_ai_key]
+
+[completion]
+activate_on_typing = true
+api_key = "ollama"
+auto_close_pairs = true
+base_url = "http://localhost:11434/v1"
+copilot = "custom"
+model = "gpt-oss:20b-cloud"
+signature_hint_on_typing = false
+
+[diagnostics]
+sql_linter = true
+
+[display]
+cell_output = "above"
+code_editor_font_size = 14
+dataframes = "rich"
+default_table_max_columns = 50
+default_table_page_size = 10
+default_width = "medium"
+reference_highlighting = false
+theme = "dark"
+
 [experimental]
 inline_ai_tooltip = false
 rtc_v2 = false
 secrets = true
+
+[formatting]
+line_length = 79
 
 [keymap]
 destructive_delete = true
@@ -9,111 +67,56 @@ preset = "default"
 
 [keymap.overrides]
 
-[diagnostics]
-sql_linter = true
-
-[runtime]
-std_stream_max_bytes = 1000000
-default_csv_encoding = "utf-8"
-default_sql_output = "native"
-default_auto_download = []
-on_cell_change = "autorun"
-reactive_tests = true
-pythonpath = [".", "src"]
-dotenv = [".env"]
-watcher_on_save = "lazy"
-output_max_bytes = 8000000
-auto_reload = "autorun"
-auto_instantiate = true
-
-[completion]
-signature_hint_on_typing = false
-base_url = "http://localhost:11434/v1"
-api_key = "ollama"
-model = "gpt-oss:20b-cloud"
-copilot = "custom"
-activate_on_typing = true
-
-[language_servers.pylsp]
-enable_pyflakes = false
-enable_mypy = true
-enabled = true
-enable_pylint = false
-enable_pydocstyle = false
-enable_flake8 = false
-enable_ruff = true
-
 [language_servers.basedpyright]
 
+[language_servers.pylsp]
+enable_flake8 = false
+enable_mypy = true
+enable_pydocstyle = false
+enable_pyflakes = false
+enable_pylint = false
+enable_ruff = true
+enabled = true
+
 [language_servers.ty]
-
-[display]
-dataframes = "rich"
-reference_highlighting = false
-default_table_max_columns = 50
-cell_output = "above"
-default_table_page_size = 10
-theme = "dark"
-default_width = "medium"
-code_editor_font_size = 14
-
-[package_management]
-manager = "uv"
-
-[server]
-follow_symlink = false
-browser = "default"
-
-[snippets]
-custom_paths = ["snippets"]
-include_default_snippets = true
-
-[ai]
-rules = "Use altair for interactive visualizations and plotly express for interactive 3d plots\nPrefer polars over pandas for data manipulation due to better performance\nInclude docstrings for all functions using NumPy style\nUse Type hints for all function parameters and return values\nHandle errors with try/except blocks and provide informative error messages\nFollow PEP 8 style guidelines\nWhen working with data:\n- Use altair, plotly for declarative visualizations\n- Prefer polars over pandas\n- Ensure proper error handling for data operations\nFor plotting:\n- Use px.scatter for scatter plots\n- Use px.line for time series\n- Include proper axis labels and titles\n- Set appropriate color schemes\nIntegrate mlflow features and patterns, polars\n\n"
-mode = "manual"
-inline_tooltip = false
-
-[ai.custom_providers]
-
-[ai.ollama]
-api_key = "ollama"
-base_url = "http://localhost:11434/v1"
-model = "gpt-oss:20b-cloud"
-
-[ai.anthropic]
-
-[ai.bedrock]
-
-[ai.open_ai]
-api_key = "ollama"
-base_url = "http://localhost:11434/v1"
-model = "gpt-oss:120b-cloud"
-
-[ai.google]
-
-[ai.models]
-custom_models = []
-chat_model = "ollama/devstral-2:123b-cloud"
-displayed_models = ["ollama/devstral-2:123b-cloud", "ollama/devstral-small-2:24b-cloud", "ollama/gpt-oss:120b-cloud", "ollama/gpt-oss:20b-cloud"]
-autocomplete_model = "ollama/devstral-small-2:24b-cloud"
-edit_model = "ollama/devstral-2:123b-cloud"
-
-[ai.open_ai_key]
-
-[save]
-autosave_delay = 1000
-format_on_save = false
-autosave = "off"
-
-[formatting]
-line_length = 79
 
 [mcp]
 presets = ["marimo", "context7"]
 
 [mcp.mcpServers.mlflow]
-command = "mlflow"
 args = ["mcp", "run"]
+command = "mlflow"
 
 [mcp.mcpServers.mlflow.env]
 MLFLOW_TRACKING_URI = "http://localhost:5000"
+
+[package_management]
+manager = "uv"
+
+[runtime]
+auto_instantiate = true
+auto_reload = "autorun"
+default_auto_download = []
+default_csv_encoding = "utf-8"
+default_sql_output = "native"
+dotenv = [".env"]
+on_cell_change = "autorun"
+output_max_bytes = 8000000
+pythonpath = [".", "src"]
+reactive_tests = true
+show_tracebacks = false
+std_stream_max_bytes = 1000000
+watcher_on_save = "lazy"
+
+[save]
+autosave = "off"
+autosave_delay = 1000
+format_on_save = false
+
+[server]
+browser = "default"
+follow_symlink = false
+
+[snippets]
+custom_paths = ["snippets"]
+include_default_snippets = true
