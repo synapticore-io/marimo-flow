@@ -45,9 +45,11 @@ USER 1000
 RUN uv sync --no-dev --extra all
 
 # Replace PyPI torch with the XPU build (bundles SYCL runtime, MKL, OneCCL).
-# triton-xpu is Linux-only; Linux-only base image makes the marker moot.
+# torch pulls its matching pytorch-triton-xpu itself; the Linux base resolves
+# that dependency's sys_platform marker, so no explicit triton pin is needed.
+# torchaudio is not a project dependency — dropped to save image space.
 RUN uv pip install --index-url https://download.pytorch.org/whl/xpu \
-        torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0 triton-xpu==3.7.0
+        torch==2.13.0 torchvision==0.28.0
 
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"

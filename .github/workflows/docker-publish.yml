@@ -100,6 +100,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # The XPU image bundles the large torch-xpu wheel (SYCL/MKL/OneCCL);
+      # the stock runner runs out of disk mid-extract (os error 28). Reclaim
+      # ~25 GB of preinstalled toolchains we don't need before building.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          sudo docker image prune -af
+
       - uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
