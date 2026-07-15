@@ -7,13 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-15
+
+### Added
+- **Parametric heat-rod control feature** (`marimo_flow.control.heat_rod`, `control.pinn_surrogate`): explicit FTCS ground-truth plant (`FiniteDifferenceHeatRod`), a parametric PINN problem builder (`build_heat_rod_problem_spec` — `T(x,t,u)` with the right-boundary temperature `T(1,t,u)=u` as the control input), an MLP reduced-order surrogate (`train_step_surrogate`), and a PINN field-mean → scalar rollout surrogate (`make_pinn_rollout_surrogate` / `register_pinn_surrogate`) for MPC horizon planning.
+- **Composition-first control inputs**: `ControlParameterSpec` + `ProblemSpec.control_parameters` (exogenous MPC inputs merged into `domain_bounds` and sampled during PINN training) and a `parametric_dirichlet` `ConditionSpec.kind` that pins an output field to a sampled input axis (`output_field = u`).
+- `register_pinn_surrogate_tool` on the control toolset — wraps a trained PINN solver as an MPC surrogate in `deps.registry`.
+
 ### Changed
-- Dependencies refreshed via `uv lock --upgrade`: pydantic-ai-slim / pydantic-graph 1.84 → 1.106, torch 2.11 → 2.12, mlflow 3.11 → 3.13, transformers 5.5 → 5.10, marimo 0.23.1 → 0.23.9, plus transitive bumps. `pyproject.toml` `>=` floors unchanged.
+- **Dependencies refreshed** via `uv lock --upgrade`: pydantic-ai-slim 1.84 → 2.10, torch 2.11 → 2.13, mlflow 3.11 → 3.13, transformers 5.5 → 5.13, PINA 0.2.6 → 0.3.1, marimo 0.23.1 → 0.23.9, plus transitive bumps.
+- **Migrated to the PINA 0.3 API**: `DomainInterface` moved to `pina.domain`, `FixedValue` to `pina.equation.zoo`, `AbstractProblem` → `BaseProblem`, the PINN-family solvers aliased to their renamed `*SingleModelSolver` forms, and `discretise_domain()` no longer accepts `domains="all"` (the default now samples all domains). `pytest` is warning-free again.
+- **pydantic-ai upgraded to 2.x**: the bundled `a2a` extra was dropped, so `fasta2a` is now an explicit direct dependency (the `agent_to_a2a` API is unchanged); the `pydantic-ai-slim` floor is bumped to `>=2.10.0` and the `[ag-ui]` extra retained.
 - **Agent graph migrated to the builder-based `pydantic-graph` API**: `build_graph()` now uses `GraphBuilder`, registering the nine v1 `BaseNode` nodes as-is via `g.node(...)`. New `agents.runner.run_graph` drives the run (`graph.run` / `graph.iter`) and logs `FlowState` snapshots to MLflow under `agent_state/`, replacing the deprecated `BaseNode`-`Graph` runner + its persistence machinery.
 - MCP builders migrated to `MCPToolset` (from deprecated `MCPServerStreamableHTTP` / `MCPServerStdio`); transport assertions now probe `toolset.client.transport`.
 - A2A / AG-UI servers migrated off the deprecated `Agent.to_a2a()` / `Agent.to_ag_ui()`: A2A uses `fasta2a.pydantic_ai.agent_to_a2a`, AG-UI is a bare Starlette app dispatching to `AGUIAdapter.dispatch_request` (the previously-xfailed AG-UI ASGI test now passes).
 - `mlflow.pydantic_ai.autolog()` is on by default — mlflow ≥ 3.11.2 fixed the circular-reference crash (mlflow#22693), now falling back to a repr dump. Opt out with `MLFLOW_PYDANTIC_AI_AUTOLOG=0`.
 - README reframed as an agentic scientific-computing platform; `pyproject.toml` description + keywords and the GitHub repo About/topics updated to match.
+- README gained an architecture diagram (natural language → pydantic-ai → PINA / MLflow / marimo), a consolidated stack table (pydantic-ai, PINA + PyTorch, MLflow, DuckDB, Polars, Plotly, marimo, MCP, Docker CPU/CUDA/XPU), and a **Claude Code integration** section covering the marimo MCP server + the marimo-pair live-kernel workflow.
 - Cleared pre-existing ruff findings surfaced by the ruff bump (typer `B008` via `extend-immutable-calls`, `SIM300`, `B017`); `ruff check` is clean again.
 
 ### Removed
@@ -200,6 +210,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **0.4.0** (2026-07-15) - Parametric heat-rod control + MPC PINN surrogate, PINA 0.3 / pydantic-ai 2.x migration, README architecture + stack + Claude Code integration
 - **0.3.1** (2026-04-28) - Composition-first PDEs, Phases B-F (inverse, mesh, design, stochastic, MPC), Triage/Validation nodes, DuckDB provenance, plotly 3D viz, Windows persistence fix
 - **0.3.0** (2026-04-21) - Multi-agent PINA team (`pydantic-graph` + MLflow + Ollama Cloud), CITATION.cff
 - **0.2.0** (2026-03-26) - Multi-platform Docker, PINA integration, MCP servers, simplified deps
@@ -208,7 +219,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **0.1.1** (2025-07-14) - Docker and CI/CD improvements
 - **0.1.0** (2025-07-08) - Initial release
 
-[Unreleased]: https://github.com/synapticore-io/marimo-flow/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/synapticore-io/marimo-flow/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/synapticore-io/marimo-flow/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/synapticore-io/marimo-flow/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/synapticore-io/marimo-flow/compare/v0.1.3...v0.2.0
