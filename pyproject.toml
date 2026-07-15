@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "marimo-flow"
-version = "0.3.1"
+version = "0.4.0"
 description = "Agentic scientific-computing platform: a reactive multi-agent team orchestrating PINA physics-informed neural-network workflows via pydantic-graph, with MLflow tracing/provenance and a marimo chat UI."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -64,12 +64,15 @@ dependencies = [
     "flask>=3.1.3",
     "optuna-integration[pytorch-lightning]>=4.8.0",
     "plotly[express,kaleido]>=6.7.0",
-    "pydantic-ai-slim[a2a,ag-ui]>=1.84.1",
+    # pydantic-ai 2.x dropped the bundled `a2a` extra; A2A now comes via the
+    # standalone `fasta2a` dep below (still the same agent_to_a2a API).
+    "pydantic-ai-slim[ag-ui]>=2.10.0",
     "pyyaml>=6.0.3",
     "python-dotenv>=1.2.2",
     "typer>=0.24.1",
     "sympy>=1.14.0",
     "meshio>=5.3.5",
+    "fasta2a>=0.6.1",
 ]
 
 [project.optional-dependencies]
