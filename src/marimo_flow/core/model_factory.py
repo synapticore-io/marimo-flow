@@ -15,11 +15,11 @@ from pina.model import FeedForward
 from marimo_flow.core.model_manager import ModelManager
 
 if TYPE_CHECKING:
-    from pina.problem import AbstractProblem
+    from pina.problem import BaseProblem
 
 
 def create_model_for_problem(
-    problem: AbstractProblem,
+    problem: BaseProblem,
     *,
     layers: list[int] | None = None,
     activation: type[nn.Module] | None = None,

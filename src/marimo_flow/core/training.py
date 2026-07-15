@@ -11,7 +11,12 @@ from urllib.parse import unquote, urlparse
 import mlflow
 import torch
 from pina.label_tensor import LabelTensor
-from pina.solver import PINN, SupervisedSolver
+from pina.solver import (
+    PhysicsInformedSingleModelSolver as PINN,
+)
+from pina.solver import (
+    SupervisedSingleModelSolver as SupervisedSolver,
+)
 from pina.trainer import Trainer
 
 # torch >= 2.6 flips torch.load's default to weights_only=True. PINA checkpoints
@@ -78,7 +83,7 @@ def train_solver(
     so Lightning's ``checkpoints/`` and ``lightning_logs/`` never escape
     into the working directory. Pass an explicit path to override.
     """
-    solver.problem.discretise_domain(n=n_points, mode=sample_mode, domains="all")
+    solver.problem.discretise_domain(n=n_points, mode=sample_mode)
     root_dir = (
         Path(default_root_dir)
         if default_root_dir is not None

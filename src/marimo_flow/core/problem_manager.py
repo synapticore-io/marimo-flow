@@ -9,7 +9,8 @@ import polars as pl
 import torch
 from pina import Condition
 from pina.domain import CartesianDomain
-from pina.equation import Equation, FixedValue
+from pina.equation import Equation
+from pina.equation.zoo import FixedValue
 from pina.operator import grad, laplacian
 from pina.problem import SpatialProblem, TimeDependentProblem
 from pina.problem.zoo import SupervisedProblem
