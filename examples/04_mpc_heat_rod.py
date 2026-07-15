@@ -1,19 +1,16 @@
-"""Closed-loop MPC on a 1D heat-rod PINN surrogate.
+"""Closed-loop MPC on a 1D heat rod with a PINN surrogate.
 
 Run with:
     marimo edit examples/04_mpc_heat_rod.py
 
-Trains a small surrogate for 1D heat equation, then drives an MPC loop
-that steers the centre temperature toward a target setpoint by
-modulating a heat-flux boundary condition. Demonstrates the Phase F
-composition: ProblemSpec → compose → train → register surrogate → MPC.
+Trains a parametric PINN (``T(x,t,u)`` with ``T(1,t,u)=u``) via the
+composer, wraps it as a reduced-order MPC surrogate, and closes the loop
+against an explicit finite-difference plant.
 """
-
-from __future__ import annotations
 
 import marimo
 
-__generated_with = "0.23.1"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -22,9 +19,12 @@ def _header():
     import marimo as mo
 
     mo.md(
-        "# MPC demo — heat rod with a PINN surrogate\n"
-        "Composition-first: no hardcoded heat-equation factory. The MPC "
-        "layer treats the trained network as a one-step dynamics model."
+        "# MPC demo — heat rod with PINN surrogate\n"
+        "\n"
+        "1. **ProblemSpec** — 1D heat equation, ``T(1)=u`` (parametric BC)\n"
+        "2. **PINN** — `compose_problem` → `train_solver`\n"
+        "3. **Surrogate** — PINN field mean → MPC rollout\n"
+        "4. **Plant** — finite-difference ground truth in the closed loop"
     )
     return (mo,)
 
@@ -32,114 +32,75 @@ def _header():
 @app.cell
 def _controls(mo):
     setpoint = mo.ui.slider(
-        start=0.0, stop=1.0, step=0.05, value=0.6, label="centre setpoint"
+        start=0.0, stop=1.0, step=0.05, value=0.6, label="mean-T setpoint"
     )
     horizon = mo.ui.slider(start=3, stop=20, step=1, value=8, label="MPC horizon")
     n_steps = mo.ui.slider(
-        start=5, stop=30, step=1, value=15, label="closed-loop steps"
+        start=10, stop=60, step=5, value=30, label="closed-loop steps"
+    )
+    max_epochs = mo.ui.slider(
+        start=20, stop=200, step=10, value=80, label="PINN epochs"
+    )
+    n_points = mo.ui.slider(
+        start=1000, stop=8000, step=1000, value=3000, label="collocation points"
     )
     mo.hstack([setpoint, horizon, n_steps])
-    return (setpoint, horizon, n_steps)
+    mo.hstack([max_epochs, n_points])
+    return horizon, max_epochs, mo, n_points, n_steps, setpoint
 
 
 @app.cell
-def _build_surrogate_spec(mo):
-    from marimo_flow.agents.schemas import (
-        ConditionSpec,
-        DerivativeSpec,
-        EquationSpec,
-        ProblemSpec,
-        SubdomainSpec,
-    )
-
-    spec = ProblemSpec(
-        name="heat_rod_1d",
-        output_variables=["T"],
-        domain_bounds={"x": [0.0, 1.0], "t": [0.0, 1.0]},
-        subdomains=[
-            SubdomainSpec(name="D", bounds={"x": [0.0, 1.0], "t": [0.0, 1.0]}),
-            SubdomainSpec(name="left", bounds={"x": 0.0, "t": [0.0, 1.0]}),
-            SubdomainSpec(name="right", bounds={"x": 1.0, "t": [0.0, 1.0]}),
-            SubdomainSpec(name="t0", bounds={"x": [0.0, 1.0], "t": 0.0}),
-        ],
-        equations=[
-            EquationSpec(
-                name="heat",
-                form="T_t - alpha*T_xx",
-                outputs=["T"],
-                derivatives=[
-                    DerivativeSpec(name="T_t", field="T", wrt=["t"]),
-                    DerivativeSpec(name="T_xx", field="T", wrt=["x", "x"]),
-                ],
-                parameters={"alpha": 0.05},
-            ),
-        ],
-        conditions=[
-            ConditionSpec(subdomain="D", kind="equation", equation_name="heat"),
-            ConditionSpec(subdomain="left", kind="fixed_value", value=0.0),
-            ConditionSpec(subdomain="right", kind="fixed_value", value=0.0),
-            ConditionSpec(subdomain="t0", kind="fixed_value", value=0.0),
-        ],
-    )
-    mo.md("Surrogate spec: 1D heat equation on x ∈ [0, 1], t ∈ [0, 1].")
-    return (spec,)
-
-
-@app.cell
-def _train_surrogate(mo, spec):
+def _compose():
     from marimo_flow.agents.services.composer import compose_problem
+    from marimo_flow.control.heat_rod import build_heat_rod_problem_spec
+
+    spec = build_heat_rod_problem_spec(alpha=0.08)
+    problem = compose_problem(spec)()
+    return problem, spec
+
+
+@app.cell
+def _train_pinn(mo, max_epochs, n_points, problem):
     from marimo_flow.core import ModelManager, SolverManager, train_solver
 
-    problem = compose_problem(spec)()
     model = ModelManager.create("feedforward", problem=problem, layers=[32, 32])
     solver = SolverManager.create(
         "pinn", problem=problem, model=model, learning_rate=1e-3
     )
     trainer = train_solver(
         solver,
-        max_epochs=10,
+        max_epochs=int(max_epochs.value),
         accelerator="cpu",
-        n_points=2048,
+        n_points=int(n_points.value),
         sample_mode="random",
     )
     mo.md(
-        "Training: 10 epochs over 2048 collocation points. Final loss terms: "
-        f"{dict(trainer.callback_metrics)}"
+        f"PINN trained for **{max_epochs.value}** epochs "
+        f"({n_points.value} collocation points). "
+        f"Final metrics: `{dict(trainer.callback_metrics)}`"
     )
-    return (solver, trainer)
+    return solver, trainer
 
 
 @app.cell
-def _wire_surrogate_callable(solver):
+def _wire_dynamics(solver):
+    from marimo_flow.control.heat_rod import FiniteDifferenceHeatRod, make_plant_stepper
+    from marimo_flow.control.pinn_surrogate import make_pinn_rollout_surrogate
+
+    plant = FiniteDifferenceHeatRod(nx=21, alpha=0.08, dt=0.01)
+    plant.set_uniform(0.0)
+    dt = 0.01
+    surrogate = make_pinn_rollout_surrogate(
+        solver, dt=dt, output_field="T", nx=21, blend=0.6
+    )
+    true_dynamics = make_plant_stepper(plant)
+    return dt, plant, surrogate, true_dynamics
+
+
+@app.cell
+def _run_mpc(dt, horizon, mo, n_steps, setpoint, surrogate, true_dynamics):
     import numpy as np
-    import torch
-    from pina.label_tensor import LabelTensor
 
-    def surrogate(state, controls):
-        """(state, controls) → predicted centre-temperature trajectory.
-
-        Crude mapping: treats each control as a heat-flux scale on the
-        right boundary and queries the PINN at x=0.5, t=dt·k. For the
-        demo this is enough — the network was trained without boundary
-        control, so 'controls' effectively multiply the surrogate value.
-        """
-        centre = 0.5
-        traj = np.zeros((len(controls), 1))
-        for k, u in enumerate(controls[:, 0]):
-            t = (k + 1) * 0.05
-            pt = LabelTensor(
-                torch.tensor([[centre, t]], dtype=torch.float32),
-                ["x", "t"],
-            )
-            base = float(solver.forward(pt).detach().cpu().numpy().squeeze())
-            traj[k, 0] = float(state[0] + u * base)
-        return traj
-
-    return (surrogate, np)
-
-
-@app.cell
-def _run_mpc(mo, surrogate, np, setpoint, horizon, n_steps):
     from marimo_flow.agents.schemas import (
         ControlPlan,
         ControlVariableSpec,
@@ -149,52 +110,54 @@ def _run_mpc(mo, surrogate, np, setpoint, horizon, n_steps):
 
     plan = ControlPlan(
         name="heat_rod_mpc",
-        surrogate_uri="mem://heat_surrogate",
+        surrogate_uri="local://heat_rod_pinn_surrogate",
         horizon=int(horizon.value),
-        dt=0.05,
-        controls=[ControlVariableSpec(name="u", low=-1.0, high=1.0)],
-        states=[StateSpec(name="T_centre", target=float(setpoint.value), weight=1.0)],
+        dt=dt,
+        controls=[ControlVariableSpec(name="u", low=0.0, high=1.0, initial=0.5)],
+        states=[StateSpec(name="T_mean", target=float(setpoint.value), weight=1.0)],
     )
     traj = simulate_closed_loop(
         plan,
         initial_state=np.array([0.0]),
         surrogate=surrogate,
-        true_dynamics=surrogate,  # surrogate == plant for this demo
+        true_dynamics=true_dynamics,
         n_steps=int(n_steps.value),
     )
 
     import plotly.graph_objects as go
 
+    states = traj["states"][:, 0]
     fig = go.Figure()
+    fig.add_trace(go.Scatter(y=states, mode="lines+markers", name="T_mean (plant)"))
     fig.add_trace(
         go.Scatter(
-            y=traj["states"][:, 0],
-            mode="lines+markers",
-            name="T_centre",
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            y=[setpoint.value] * len(traj["states"]),
+            y=[setpoint.value] * len(states),
             mode="lines",
             line={"dash": "dash"},
             name="setpoint",
         )
     )
-    fig.update_layout(title="Closed-loop state trajectory")
-    mo.ui.plotly(fig)
+    fig.update_layout(title="Closed-loop spatial mean (FD plant)", yaxis_title="T_mean")
 
     ctrl_fig = go.Figure()
     ctrl_fig.add_trace(
         go.Scatter(
             y=traj["controls"][:, 0],
             mode="lines+markers",
-            name="u",
+            name="u (right BC)",
         )
     )
-    ctrl_fig.update_layout(title="Applied control sequence")
-    mo.ui.plotly(ctrl_fig)
-    return (traj,)
+    ctrl_fig.update_layout(title="Applied boundary temperature", yaxis_title="u")
+
+    final_err = abs(states[-1] - setpoint.value)
+    mo.vstack(
+        [
+            mo.md(f"Final tracking error |T_mean − setpoint| = **{final_err:.4f}**."),
+            mo.ui.plotly(fig),
+            mo.ui.plotly(ctrl_fig),
+        ]
+    )
+    return
 
 
 if __name__ == "__main__":

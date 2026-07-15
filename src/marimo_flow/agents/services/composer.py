@@ -35,7 +35,8 @@ import sympy
 import torch
 from pina import Condition, LabelTensor
 from pina.domain import CartesianDomain
-from pina.equation import Equation, FixedValue
+from pina.equation import Equation
+from pina.equation.zoo import FixedValue
 from pina.operator import grad, laplacian
 from pina.problem import InverseProblem, SpatialProblem, TimeDependentProblem
 
@@ -54,6 +55,20 @@ from marimo_flow.agents.services.mesh_domain import MeshDomain, load_mesh_domain
 _INPUT_VAR_CANDIDATES: tuple[str, ...] = ("x", "y", "z", "t")
 
 
+def _merge_control_bounds(spec: ProblemSpec) -> dict[str, list[float]]:
+    bounds: dict[str, list[float]] = {
+        axis: [float(v[0]), float(v[1])] for axis, v in spec.domain_bounds.items()
+    }
+    for cp in spec.control_parameters:
+        if cp.name not in bounds:
+            bounds[cp.name] = [float(cp.low), float(cp.high)]
+    return bounds
+
+
+def _collect_input_names(bounds: dict[str, list[float]]) -> set[str]:
+    return set(bounds.keys())
+
+
 def compose_problem(spec: ProblemSpec) -> type:
     """Assemble a ``pina.Problem`` subclass from a ``ProblemSpec``.
 
@@ -62,7 +77,9 @@ def compose_problem(spec: ProblemSpec) -> type:
     ``ProblemManager`` return shape so downstream toolsets
     (``ModelManager``, ``SolverManager``) keep working unchanged.
     """
-    spatial_bounds, temporal_bounds = _split_domain(spec.domain_bounds)
+    domain_bounds = _merge_control_bounds(spec)
+    input_names = _collect_input_names(domain_bounds)
+    spatial_bounds, temporal_bounds = _split_domain(domain_bounds)
     temporal_domain = (
         CartesianDomain({"t": temporal_bounds}) if temporal_bounds else None
     )
@@ -84,14 +101,23 @@ def compose_problem(spec: ProblemSpec) -> type:
 
     unknown_names = {u.name for u in spec.unknowns}
     equations: dict[str, Equation] = {
-        eq.name: build_equation(eq, unknown_names=unknown_names, noise=spec.noise)
+        eq.name: build_equation(
+            eq,
+            unknown_names=unknown_names,
+            input_names=input_names,
+            noise=spec.noise,
+        )
         for eq in spec.equations
     }
 
     conditions: dict[str, Condition] = {}
     for cond in spec.conditions:
         conditions[cond.subdomain] = _compile_condition(
-            cond, equations, unknown_names=unknown_names
+            cond,
+            equations,
+            unknown_names=unknown_names,
+            output_variables=spec.output_variables,
+            input_names=input_names,
         )
     for obs in spec.observations:
         conditions[obs.name] = _compile_observation(obs)
@@ -126,6 +152,7 @@ def build_equation(
     spec: EquationSpec,
     *,
     unknown_names: set[str] | None = None,
+    input_names: set[str] | None = None,
     noise: NoiseSpec | None = None,
 ) -> Equation:
     """Compile a symbolic ``EquationSpec`` into a ``pina.Equation``.
@@ -147,7 +174,7 @@ def build_equation(
     2-arg direct signature.
     """
     unknowns = set(unknown_names or ())
-    symbol_names, torch_fn = _build_lambda(spec, unknowns)
+    symbol_names, torch_fn = _build_lambda(spec, unknowns, input_names or set())
 
     form_unknowns = [n for n in symbol_names if n in unknowns]
     is_inverse = bool(form_unknowns)
@@ -158,9 +185,11 @@ def build_equation(
         for out_var in spec.outputs:
             if out_var in symbol_names:
                 values[out_var] = output_.extract([out_var])
-        for var in _INPUT_VAR_CANDIDATES:
-            if var in symbol_names:
+        for var in sorted(input_names or set(_INPUT_VAR_CANDIDATES)):
+            if var in symbol_names and var != "t":
                 values[var] = input_.extract([var])
+        if "t" in symbol_names:
+            values["t"] = input_.extract(["t"])
         for pname, pval in spec.parameters.items():
             if pname in symbol_names:
                 values[pname] = float(pval)
@@ -255,6 +284,8 @@ def _compile_condition(
     equations: dict[str, Equation],
     *,
     unknown_names: set[str] | None = None,
+    output_variables: list[str] | None = None,
+    input_names: set[str] | None = None,
 ) -> Condition:
     if cond.kind == "fixed_value":
         if cond.value is None:
@@ -262,9 +293,26 @@ def _compile_condition(
                 f"condition on '{cond.subdomain}' kind='fixed_value' needs value"
             )
         return Condition(domain=cond.subdomain, equation=FixedValue(cond.value))
+    if cond.kind == "parametric_dirichlet":
+        if not cond.parameter_name:
+            raise ValueError(
+                f"condition on '{cond.subdomain}' kind='parametric_dirichlet' "
+                "needs parameter_name"
+            )
+        if not output_variables:
+            raise ValueError(
+                "parametric_dirichlet requires output_variables on ProblemSpec"
+            )
+        field = cond.output_field or output_variables[0]
+        eq = _parametric_dirichlet_equation(field, cond.parameter_name)
+        return Condition(domain=cond.subdomain, equation=eq)
     if cond.kind == "equation":
         if cond.equation_inline is not None:
-            eq = build_equation(cond.equation_inline, unknown_names=unknown_names)
+            eq = build_equation(
+                cond.equation_inline,
+                unknown_names=unknown_names,
+                input_names=input_names,
+            )
         elif cond.equation_name is not None:
             eq = equations.get(cond.equation_name)
             if eq is None:
@@ -279,6 +327,15 @@ def _compile_condition(
             )
         return Condition(domain=cond.subdomain, equation=eq)
     raise ValueError(f"unknown condition kind: {cond.kind!r}")
+
+
+def _parametric_dirichlet_equation(field: str, parameter_name: str) -> Equation:
+    """Dirichlet BC ``field = parameter_name`` with the parameter read from inputs."""
+
+    def residual(input_: Any, output_: Any) -> Any:
+        return output_.extract([field]) - input_.extract([parameter_name])
+
+    return Equation(residual)
 
 
 def _compile_observation(obs: ObservationSpec) -> Condition:
@@ -390,7 +447,9 @@ _TORCH_MODULE: dict[str, Any] = {
 
 
 def _build_lambda(
-    spec: EquationSpec, unknowns: set[str]
+    spec: EquationSpec,
+    unknowns: set[str],
+    input_names: set[str],
 ) -> tuple[list[str], Callable[..., Any]]:
     """Parse ``spec.form`` via sympy and return (symbol_names, torch_fn).
 
@@ -405,6 +464,9 @@ def _build_lambda(
     names.update(spec.parameters)
     names.update(n for n in unknowns if _token_present(spec.form, n))
     for axis in _INPUT_VAR_CANDIDATES:
+        if _token_present(spec.form, axis):
+            names.add(axis)
+    for axis in input_names:
         if _token_present(spec.form, axis):
             names.add(axis)
 

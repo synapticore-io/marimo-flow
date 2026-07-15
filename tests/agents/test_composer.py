@@ -386,6 +386,16 @@ def test_observation_without_materialisation_errors():
         compose_problem(spec)
 
 
+def test_compose_heat_rod_parametric_control():
+    from marimo_flow.control.heat_rod import build_heat_rod_problem_spec
+
+    cls = compose_problem(build_heat_rod_problem_spec(alpha=0.08))
+    instance = cls()
+    assert set(instance.input_variables or []) == {"x", "t", "u"}
+    assert instance.output_variables == ["T"]
+    assert "right" in instance.domains
+
+
 def test_compose_emits_meaningful_class_name():
     cls = compose_problem(_burgers_spec(name="my_special_burgers"))
     assert cls.__name__ == "my_special_burgers"

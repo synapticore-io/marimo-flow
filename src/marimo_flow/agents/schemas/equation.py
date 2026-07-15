@@ -115,7 +115,7 @@ class SubdomainSpec(BaseModel):
     )
 
 
-ConditionKind = Literal["fixed_value", "equation"]
+ConditionKind = Literal["fixed_value", "equation", "parametric_dirichlet"]
 
 
 class ConditionSpec(BaseModel):
@@ -125,6 +125,8 @@ class ConditionSpec(BaseModel):
     ``kind="equation"`` + ``equation_name="..."`` → points at an
     EquationSpec defined at the ProblemSpec level (either the main PDE
     residual applied on an interior subdomain, or a BC/IC expression).
+    ``kind="parametric_dirichlet"`` + ``parameter_name="u"`` → enforces
+    ``output_field = u`` on the subdomain (``u`` sampled as an input).
     ``equation_inline`` is an escape hatch for one-off conditions
     (e.g. a custom IC) that shouldn't clutter the top-level equations list.
     """
@@ -136,3 +138,11 @@ class ConditionSpec(BaseModel):
     value: float | None = None
     equation_name: str | None = None
     equation_inline: EquationSpec | None = None
+    parameter_name: str | None = Field(
+        default=None,
+        description="control-parameter axis for parametric_dirichlet",
+    )
+    output_field: str | None = Field(
+        default=None,
+        description="field pinned to parameter_name; defaults to first output",
+    )

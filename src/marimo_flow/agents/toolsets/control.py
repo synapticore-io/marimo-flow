@@ -26,7 +26,6 @@ from marimo_flow.agents.schemas import (
     ControlVariableSpec,
     StateSpec,
 )
-from marimo_flow.control import run_mpc_step, simulate_closed_loop
 
 control_toolset: FunctionToolset[FlowDeps] = FunctionToolset(id="control")
 
@@ -65,6 +64,8 @@ def mpc_step(
     surrogate_registry_key: str,
 ) -> dict[str, Any]:
     """Solve one MPC horizon given a live surrogate callable."""
+    from marimo_flow.control.mpc import run_mpc_step
+
     plan_model = ControlPlan.model_validate(plan)
     fn = ctx.deps.registry.get(surrogate_registry_key)
     if fn is None or not callable(fn):
@@ -73,6 +74,36 @@ def mpc_step(
         )
     ctrl, info = run_mpc_step(plan_model, np.asarray(state_now, dtype=float), fn)
     return {"controls_horizon": ctrl.tolist(), **info}
+
+
+@control_toolset.tool
+def register_pinn_surrogate_tool(
+    ctx: RunContext[FlowDeps],
+    solver_registry_key: str,
+    surrogate_registry_key: str,
+    dt: float,
+    output_field: str = "T",
+    nx: int = 21,
+    blend: float = 0.6,
+) -> str:
+    """Wrap a trained PINN solver as an MPC surrogate in ``deps.registry``."""
+    from marimo_flow.control.pinn_surrogate import register_pinn_surrogate
+
+    solver = ctx.deps.registry.get(solver_registry_key)
+    if solver is None:
+        raise ModelRetry(
+            f"no solver registered under {solver_registry_key!r}; train first"
+        )
+    register_pinn_surrogate(
+        ctx.deps.registry,
+        surrogate_registry_key,
+        solver,
+        dt=dt,
+        output_field=output_field,
+        nx=nx,
+        blend=blend,
+    )
+    return surrogate_registry_key
 
 
 @control_toolset.tool
@@ -85,6 +116,8 @@ def closed_loop_simulation(
     n_steps: int = 20,
 ) -> dict[str, list[list[float]]]:
     """Run a closed-loop rollout and return the state / control trajectory."""
+    from marimo_flow.control.mpc import simulate_closed_loop
+
     plan_model = ControlPlan.model_validate(plan)
     sur = ctx.deps.registry.get(surrogate_registry_key)
     plant = ctx.deps.registry.get(true_dynamics_registry_key)
