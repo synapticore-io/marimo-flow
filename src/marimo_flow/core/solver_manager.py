@@ -14,15 +14,28 @@ from typing import Any
 import torch
 import torch.nn as nn
 from pina.optim import TorchOptimizer
-from pina.problem import AbstractProblem
+from pina.problem import BaseProblem
+
+# PINA 0.3 renamed the solver classes to verbose *SingleModelSolver forms;
+# alias back to the established short domain names (PINN, SAPINN, …).
 from pina.solver import (
-    PINN,
-    RBAPINN,
-    CausalPINN,
-    GradientPINN,
-    SupervisedSolver,
+    CausalPhysicsInformedSingleModelSolver as CausalPINN,
 )
-from pina.solver import SelfAdaptivePINN as SAPINN
+from pina.solver import (
+    GradientPhysicsInformedSingleModelSolver as GradientPINN,
+)
+from pina.solver import (
+    PhysicsInformedSingleModelSolver as PINN,
+)
+from pina.solver import (
+    RBAPhysicsInformedSingleModelSolver as RBAPINN,
+)
+from pina.solver import (
+    SelfAdaptivePhysicsInformedSolver as SAPINN,
+)
+from pina.solver import (
+    SupervisedSingleModelSolver as SupervisedSolver,
+)
 
 
 def _resolve_optimizer(
@@ -46,7 +59,7 @@ def _make_standard_pinn_factory(
     """
 
     def _factory(
-        problem: AbstractProblem,
+        problem: BaseProblem,
         model: nn.Module,
         optimizer: torch.optim.Optimizer | TorchOptimizer | None = None,
         learning_rate: float = 1e-3,
@@ -69,7 +82,7 @@ def _make_standard_pinn_factory(
 
 
 def _create_supervised_solver(
-    problem: AbstractProblem,
+    problem: BaseProblem,
     model: nn.Module,
     optimizer: torch.optim.Optimizer | TorchOptimizer | None = None,
     learning_rate: float = 1e-3,
@@ -94,7 +107,7 @@ def _create_supervised_solver(
 
 
 def _create_sapinn(
-    problem: AbstractProblem,
+    problem: BaseProblem,
     model: nn.Module,
     optimizer: torch.optim.Optimizer | TorchOptimizer | None = None,
     learning_rate: float = 1e-3,
@@ -140,7 +153,7 @@ class SolverManager:
         cls,
         kind: str,
         *,
-        problem: AbstractProblem,
+        problem: BaseProblem,
         model: nn.Module,
         **kwargs: Any,
     ) -> Any:

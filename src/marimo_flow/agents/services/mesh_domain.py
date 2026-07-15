@@ -19,7 +19,7 @@ from typing import Any
 
 import numpy as np
 import torch
-from pina.domain.domain_interface import DomainInterface
+from pina.domain import DomainInterface
 from pina.label_tensor import LabelTensor
 
 from marimo_flow.agents.schemas import MeshSpec

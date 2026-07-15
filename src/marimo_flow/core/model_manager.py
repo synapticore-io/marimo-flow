@@ -22,17 +22,17 @@ from typing import TYPE_CHECKING, Any
 import torch.nn as nn
 
 if TYPE_CHECKING:
-    from pina.problem import AbstractProblem
+    from pina.problem import BaseProblem
 
 
-def _in_out_dims(problem: AbstractProblem) -> tuple[int, int]:
+def _in_out_dims(problem: BaseProblem) -> tuple[int, int]:
     if problem.input_variables is None or problem.output_variables is None:
         raise ValueError("Problem must define input_variables and output_variables.")
     return len(problem.input_variables), len(problem.output_variables)
 
 
 def _create_feedforward(
-    problem: AbstractProblem,
+    problem: BaseProblem,
     *,
     layers: list[int] | None = None,
     activation: type[nn.Module] | None = None,
@@ -50,7 +50,7 @@ def _create_feedforward(
 
 
 def _create_residual_feedforward(
-    problem: AbstractProblem,
+    problem: BaseProblem,
     *,
     layers: list[int] | None = None,
     activation: type[nn.Module] | None = None,
@@ -68,7 +68,7 @@ def _create_residual_feedforward(
 
 
 def _create_fno(
-    problem: AbstractProblem,
+    problem: BaseProblem,
     *,
     lifting_net: nn.Module | None = None,
     projecting_net: nn.Module | None = None,
@@ -103,7 +103,7 @@ def _create_fno(
 
 
 def _create_deeponet(
-    problem: AbstractProblem,
+    problem: BaseProblem,
     *,
     branch_net: nn.Module | None = None,
     trunk_net: nn.Module | None = None,
@@ -129,7 +129,7 @@ def _create_deeponet(
 
 
 def _create_pirate(
-    problem: AbstractProblem,
+    problem: BaseProblem,
     *,
     layers: list[int] | None = None,
     activation: type[nn.Module] | None = None,
@@ -148,7 +148,7 @@ def _create_pirate(
 
 
 def _create_walrus(
-    problem: AbstractProblem,
+    problem: BaseProblem,
     *,
     checkpoint: str = "polymathic-ai/walrus",
     freeze_backbone: bool = True,
@@ -192,7 +192,7 @@ class ModelManager:
         cls,
         kind: str,
         *,
-        problem: AbstractProblem,
+        problem: BaseProblem,
         **kwargs: Any,
     ) -> nn.Module:
         key = kind.strip().lower()

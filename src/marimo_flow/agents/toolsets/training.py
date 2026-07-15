@@ -41,7 +41,7 @@ def discretise_domain(
             "agent can run first, then retry discretise_domain."
         )
     problem = ctx.deps.registry[state.problem_artifact_uri]
-    problem.discretise_domain(n=n, mode=mode, domains="all")
+    problem.discretise_domain(n=n, mode=mode)
     return f"Discretised domain: n={n}, mode={mode!r}."
 
 
