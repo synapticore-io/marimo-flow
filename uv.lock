@@ -16,9 +16,6 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
-[manifest]
-overrides = [{ name = "fastmcp", specifier = ">=3.2.0" }]
-
 [[package]]
 name = "accelerate"
 version = "1.15.0"
@@ -3300,7 +3297,7 @@ sql = [
 
 [[package]]
 name = "marimo-flow"
-version = "0.4.1"
+version = "0.4.2"
 source = { editable = "." }
 dependencies = [
     { name = "accelerate" },
@@ -3309,6 +3306,7 @@ dependencies = [
     { name = "cryptography" },
     { name = "diskcache" },
     { name = "fasta2a" },
+    { name = "fastmcp" },
     { name = "flask" },
     { name = "gitpython" },
     { name = "httpcore2" },
@@ -3317,7 +3315,7 @@ dependencies = [
     { name = "lightning" },
     { name = "marimo", extra = ["lsp", "mcp", "recommended", "sql"] },
     { name = "meshio" },
-    { name = "mlflow", extra = ["genai", "mcp"] },
+    { name = "mlflow", extra = ["genai"] },
     { name = "optuna" },
     { name = "optuna-integration", extra = ["pytorch-lightning"] },
     { name = "pillow" },
@@ -3368,6 +3366,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=49.0.0" },
     { name = "diskcache", specifier = ">=5.6.3" },
     { name = "fasta2a", specifier = ">=0.6.1" },
+    { name = "fastmcp", specifier = ">=4.0.9" },
     { name = "flask", specifier = ">=3.1.3" },
     { name = "gitpython", specifier = ">=3.1.59" },
     { name = "httpcore2", specifier = ">=2.10.0" },
@@ -3376,7 +3375,7 @@ requires-dist = [
     { name = "lightning", specifier = ">=2.6.6" },
     { name = "marimo", extras = ["lsp", "recommended", "sql", "mcp"], specifier = ">=0.23.1" },
     { name = "meshio", specifier = ">=5.3.5" },
-    { name = "mlflow", extras = ["genai", "mcp"], specifier = ">=3.16.1" },
+    { name = "mlflow", extras = ["genai"], specifier = ">=3.16.1" },
     { name = "optuna", specifier = ">=4.8.0" },
     { name = "optuna-integration", extras = ["pytorch-lightning"], specifier = ">=4.8.0" },
     { name = "pillow", specifier = ">=12.2.0" },
@@ -3714,10 +3713,6 @@ genai = [
     { name = "tiktoken" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "watchfiles" },
-]
-mcp = [
-    { name = "click" },
-    { name = "fastmcp" },
 ]
 
 [[package]]

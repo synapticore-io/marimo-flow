@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "marimo-flow"
-version = "0.4.1"
+version = "0.4.2"
 description = "Agentic scientific-computing platform: a reactive multi-agent team orchestrating PINA physics-informed neural-network workflows via pydantic-graph, with MLflow tracing/provenance and a marimo chat UI."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -44,7 +44,10 @@ classifiers = [
 ]
 dependencies = [
     "marimo[lsp,recommended,sql,mcp]>=0.23.1",
-    "mlflow[genai,mcp]>=3.16.1",
+    # No [mcp] extra: it pins fastmcp<4, which pip resolves to fastmcp 2.x +
+    # mcp 2.x (ImportError on McpError). We need the fastmcp client directly.
+    "mlflow[genai]>=3.16.1",
+    "fastmcp>=4.0.9",
     "optuna>=4.8.0",
     "pina-mathlab>=0.2.6",
     "transformers[accelerate,tiktoken]>=5.5.4",
@@ -123,9 +126,6 @@ marimo_flow = ["py.typed", "*.yaml", "*.yml", "*.json", "*.css", "*.mp4"]
 
 [tool.uv]
 link-mode = "copy"
-# Override mlflow's `fastmcp<3` pin to pick up security fixes (CVE-2026-32871,
-# CVE-2026-27124, CVE-2025-64340). Revisit once mlflow supports fastmcp 3.
-override-dependencies = ["fastmcp>=3.2.0"]
 
 [tool.ruff]
 line-length = 88

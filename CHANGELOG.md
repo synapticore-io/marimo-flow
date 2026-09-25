@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-09-25
+
+### Fixed
+- **Broken `pip install` (ImportError `McpError`)**: `mlflow[mcp]` pins `fastmcp<4`, and `marimo[mcp]` needs `mcp>=2`; without the lockfile the only solution was fastmcp 2.14.1 + mcp 2.x, which cannot import `mcp.shared.exceptions.McpError`. The lockfile hid this via `override-dependencies`, which is not published in wheel metadata. Now `mlflow[genai]` + a direct `fastmcp>=4.0.9` (what `agents/mcp.py` actually imports); the override is gone, so `pyproject.toml` alone resolves to the same fastmcp 4 / mcp 2 set as `uv.lock`. `mlflow mcp run` keeps working.
+
+### Changed
+- GitHub Pages: examples 01/03/04 are exported as static HTML (outputs rendered in CI) instead of WASM — Pyodide has no torch/PINA, and the WASM layout was broken. 02 and `lab` are no longer published.
+- CI actions moved off the deprecated Node 20 runtime.
+
 ## [0.4.1] - 2026-09-25
 
 ### Security
@@ -230,7 +239,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **0.1.1** (2025-07-14) - Docker and CI/CD improvements
 - **0.1.0** (2025-07-08) - Initial release
 
-[Unreleased]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/synapticore-io/marimo-flow/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/synapticore-io/marimo-flow/compare/v0.3.0...v0.3.1
