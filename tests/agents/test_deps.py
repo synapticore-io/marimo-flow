@@ -3,6 +3,7 @@
 import os
 
 import pytest
+from pydantic_ai.exceptions import UserError
 
 from marimo_flow.agents.deps import (
     DEFAULT_MARIMO_MCP_URL,
@@ -130,7 +131,7 @@ def test_load_config_honours_marimo_flow_config_env(monkeypatch, tmp_path):
 
 def test_unknown_provider_raises(monkeypatch):
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-    with pytest.raises(ValueError):
+    with pytest.raises(UserError, match="Unknown model"):
         get_model("route", override="no-such-provider:foo")
 
 

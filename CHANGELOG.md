@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Dependencies refreshed** via `uv lock --upgrade` to close the open Dependabot alerts (GitPython, mlflow, cryptography, sqlparse, httpx2/httpcore2, lightning, aiohttp, accelerate, pymdown-extensions, python-multipart). `diskcache` 5.6.3 remains flagged — no upstream fix (#32).
+
+### Changed
+- Notable bumps: pydantic-ai-slim 2.10 → 2.49, mlflow 3.14 → 3.16, marimo 0.23 → 0.25, torch 2.13 → 2.14, transformers 5.13 → 5.17, optuna 4.9 → 5.0, pandas 2.3 → 3.0, plotly 6.9 → 7.1, sqlalchemy 2.0 → 2.1, ruff 0.15 → 0.16.
+- pydantic-ai now raises `UserError` (not `ValueError`) for unknown model providers; `test_unknown_provider_raises` updated.
+- `ruff format` excludes `*.md`: ruff 0.16 formats Markdown code blocks by default and mangled the pseudo-code snippets in docs and skills.
+
 ## [0.4.0] - 2026-07-15
 
 ### Added

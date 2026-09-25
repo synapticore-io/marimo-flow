@@ -139,6 +139,9 @@ extend-immutable-calls = ["typer.Option", "typer.Argument"]
 "examples/*" = ["B018"]
 
 [tool.ruff.format]
+# ruff >= 0.16 formats Markdown code blocks by default and mangles the
+# pseudo-code/tool-call snippets in docs and skills.
+exclude = ["*.md"]
 quote-style = "double"
 indent-style = "space"
 
