@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-25
+
 ### Security
 - **Dependencies refreshed** via `uv lock --upgrade` to close the open Dependabot alerts (GitPython, mlflow, cryptography, sqlparse, httpx2/httpcore2, lightning, aiohttp, accelerate, pymdown-extensions, python-multipart). `diskcache` 5.6.3 remains flagged — no upstream fix (#32).
+- Raised the explicit security minimums in `pyproject.toml` so PyPI installs get the patched versions too: `mlflow>=3.16.1`, `cryptography>=49.0.0`, `sqlparse>=0.6.0`, `python-multipart>=0.0.27`, plus new floors for `gitpython`, `httpx2`, `httpcore2`, `lightning`, `aiohttp`, `accelerate`, `pymdown-extensions`.
 
 ### Changed
 - Notable bumps: pydantic-ai-slim 2.10 → 2.49, mlflow 3.14 → 3.16, marimo 0.23 → 0.25, torch 2.13 → 2.14, transformers 5.13 → 5.17, optuna 4.9 → 5.0, pandas 2.3 → 3.0, plotly 6.9 → 7.1, sqlalchemy 2.0 → 2.1, ruff 0.15 → 0.16.
@@ -227,7 +230,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **0.1.1** (2025-07-14) - Docker and CI/CD improvements
 - **0.1.0** (2025-07-08) - Initial release
 
-[Unreleased]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/synapticore-io/marimo-flow/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/synapticore-io/marimo-flow/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/synapticore-io/marimo-flow/compare/v0.2.0...v0.3.0
