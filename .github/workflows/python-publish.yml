@@ -15,26 +15,28 @@ permissions:
   id-token: write
 
 jobs:
+  # Release gate: nothing is built or published unless the full CI passes,
+  # including the lockfile-free wheel install that pip users get.
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   build:
     name: Build Distribution
+    needs: [ci]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v10.2.0
 
-      - uses: astral-sh/setup-uv@v8.3.2
-        with:
-          version: "latest"
-
-      - uses: actions/cache@v6
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
+      - name: Tag matches pyproject version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          project_version=$(uv version --short)
+          if [ "${GITHUB_REF_NAME#v}" != "$project_version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match pyproject version $project_version"
+            exit 1
+          fi
 
       - name: Build package
         run: uv build

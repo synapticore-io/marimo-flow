@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  locked:
+    name: Tests (uv.lock, py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      # --locked fails if uv.lock is out of date with pyproject.toml.
+      - name: Install
+        run: uv sync --locked --all-groups
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Tests
+        run: uv run pytest -q
+
+  # What `pip install marimo-flow` users get: the built wheel, resolved from
+  # pyproject.toml alone (no uv.lock, no [tool.uv] overrides). lowest-direct
+  # proves the declared minimums actually work.
+  wheel:
+    name: Wheel install (${{ matrix.resolution }}, py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.13"
+            resolution: highest
+          - python: "3.11"
+            resolution: lowest-direct
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Build wheel
+        run: uv build --wheel
+
+      # `--resolution lowest-direct` on the wheel itself would treat only
+      # marimo-flow as direct and resolve its dependencies to the highest
+      # versions. Resolving pyproject.toml first and installing the wheel under
+      # those constraints actually pins every direct dependency to its floor.
+      - name: Install wheel without lockfile
+        run: |
+          uv pip compile pyproject.toml --resolution ${{ matrix.resolution }} --python-version ${{ matrix.python }} -o /tmp/constraints.txt
+          uv venv /tmp/wheel-env --python ${{ matrix.python }}
+          uv pip install --python /tmp/wheel-env dist/*.whl -c /tmp/constraints.txt
+          uv pip install --python /tmp/wheel-env "pytest>=9.1.1" "pytest-asyncio>=1.4.0"
+
+      - name: Import from site-packages, not src/
+        run: |
+          /tmp/wheel-env/bin/python - <<'EOF'
+          import marimo_flow
+          assert "site-packages" in marimo_flow.__file__, marimo_flow.__file__
+          import marimo_flow.agents.services.composer  # the chain that broke in 0.4.1
+          print("marimo_flow from", marimo_flow.__file__)
+          EOF
+
+      - name: Tests against installed wheel
+        run: /tmp/wheel-env/bin/python -m pytest -q
+
+      - name: Run example notebooks
+        run: |
+          for name in 01_pina_poisson_solver 03_navier_stokes_3d_cavity 04_mpc_heat_rod; do
+            /tmp/wheel-env/bin/python -m marimo export html "examples/$name.py" \
+              -o "/tmp/$name.html" --no-sandbox -f
+          done
