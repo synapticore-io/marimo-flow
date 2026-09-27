@@ -11,6 +11,20 @@ Reactive Python notebooks with MLflow tracking and PINA physics-informed neural 
 - `mlflow ui` - Start MLflow dashboard
 - `ruff format . && ruff check --fix .` - Format/lint
 
+## Dependencies & Releases
+
+- `uv.lock` is for dev/CI reproducibility only — pip users never see it.
+  `pyproject.toml` alone must resolve to a working set.
+- Direct dependency floors = the versions in `uv.lock` (use the lowest locked
+  version when uv.lock has per-Python splits, e.g. sphinx). No
+  `[tool.uv] override-dependencies` for runtime deps — overrides never reach
+  the wheel.
+- `.github/workflows/ci.yml` is the release gate: locked tests + the built
+  wheel installed without the lockfile (`highest` py3.13, `lowest-direct`
+  py3.11) + example notebooks. `python-publish.yml` needs it and checks
+  tag == `pyproject.toml` version.
+- Release: `uv version --bump patch` → CHANGELOG → commit → tag `vX.Y.Z` → push.
+
 ## MCP Servers
 
 - **marimo**: start manually with `marimo edit --mcp --no-token --port 2718 --headless`

@@ -1,17 +1,9 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "marimo>=0.21.0",
-#     "pina-mathlab>=0.2.1",
-#     "torch>=2.5.1",
-#     "lightning>=2.5.0",
-#     "transformers>=4.55.0",
-#     "mlflow>=3.10.1",
-#     "optuna>=4.3.0",
-#     "optuna-integration[pytorch-lightning]>=4.8.0",
-#     "altair>=5.5.0",
-#     "polars>=1.17.0",
-#     "numpy>=2.1.2",
+#     # Pulls pina-mathlab, torch, plotly, ... Declared explicitly so marimo's
+#     # sandbox does not auto-install the unrelated PyPI package "pina".
+#     "marimo-flow>=0.4.3",
 # ]
 # ///
 

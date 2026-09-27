@@ -1,3 +1,12 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     # Pulls pina-mathlab, torch, plotly, ... Declared explicitly so marimo's
+#     # sandbox does not auto-install the unrelated PyPI package "pina".
+#     "marimo-flow>=0.4.3",
+# ]
+# ///
+
 """Closed-loop MPC on a 1D heat rod with a PINN surrogate.
 
 Run with:
