@@ -53,8 +53,12 @@ def _controls(mo):
     n_points = mo.ui.slider(
         start=1000, stop=8000, step=1000, value=3000, label="collocation points"
     )
-    mo.hstack([setpoint, horizon, n_steps])
-    mo.hstack([max_epochs, n_points])
+    mo.vstack(
+        [
+            mo.hstack([setpoint, horizon, n_steps]),
+            mo.hstack([max_epochs, n_points]),
+        ]
+    )
     return horizon, max_epochs, mo, n_points, n_steps, setpoint
 
 
@@ -86,7 +90,10 @@ def _train_pinn(mo, max_epochs, n_points, problem):
     mo.md(
         f"PINN trained for **{max_epochs.value}** epochs "
         f"({n_points.value} collocation points). "
-        f"Final metrics: `{dict(trainer.callback_metrics)}`"
+        "Final losses: "
+        + ", ".join(
+            f"`{k}` {float(v):.4f}" for k, v in trainer.callback_metrics.items()
+        )
     )
     return solver, trainer
 

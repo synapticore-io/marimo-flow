@@ -58,8 +58,12 @@ def _controls(mo):
         start=32, stop=128, step=16, value=64, label="hidden width"
     )
     max_epochs = mo.ui.slider(start=5, stop=100, step=5, value=20, label="max epochs")
-    mo.hstack([viscosity, lid_speed])
-    mo.hstack([n_points, hidden_width, max_epochs])
+    mo.vstack(
+        [
+            mo.hstack([viscosity, lid_speed]),
+            mo.hstack([n_points, hidden_width, max_epochs]),
+        ]
+    )
     return (viscosity, lid_speed, n_points, hidden_width, max_epochs)
 
 
@@ -151,8 +155,7 @@ def _show_domain(mo, problem):
     from marimo_flow.core.viz3d import domain_figure
 
     domain_fig = domain_figure(problem)
-    mo.md("## Spatial domain")
-    mo.ui.plotly(domain_fig)
+    mo.vstack([mo.md("## Spatial domain"), mo.ui.plotly(domain_fig)])
     return (domain_fig,)
 
 
@@ -176,8 +179,7 @@ def _train(mo, problem, n_points, hidden_width, max_epochs):
         sample_mode="latin",
     )
     metrics = {k: float(v) for k, v in trainer.callback_metrics.items()}
-    mo.md("## Training metrics")
-    mo.ui.table([metrics])
+    mo.vstack([mo.md("## Training metrics"), mo.ui.table([metrics])])
     return (trainer, solver, metrics)
 
 

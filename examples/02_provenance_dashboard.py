@@ -124,8 +124,7 @@ def _preset_family_picker(mo):
         label="Preset family",
     )
     include_deprecated = mo.ui.checkbox(value=False, label="include deprecated")
-    mo.md("## Preset-Bibliothek")
-    mo.hstack([family, include_deprecated])
+    mo.vstack([mo.md("## Preset-Bibliothek"), mo.hstack([family, include_deprecated])])
     return (family, include_deprecated)
 
 
@@ -144,13 +143,14 @@ def _presets(mo, store, family, include_deprecated):
         f"FROM {preset_table} {preset_where} "
         f"ORDER BY created_at DESC"
     )
-    if presets_rows:
+    (
         mo.ui.table(presets_rows)
-    else:
-        mo.md(
+        if presets_rows
+        else mo.md(
             f"_No {family.value} compositions yet — they get authored "
             "by the agents as they go._"
         )
+    )
     return (presets_rows,)
 
 

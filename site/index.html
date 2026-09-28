@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>marimo-flow examples</title>
+  <meta name="description" content="Rendered example notebooks for marimo-flow: PINA physics-informed neural networks, MPC and MLflow tracking in marimo.">
+  <style>
+    :root {
+      --bg: #fbfbfa;
+      --fg: #1c1d1f;
+      --muted: #5f636b;
+      --rule: #e3e3df;
+      --link: #1f5fbf;
+      --code-bg: #f0f0ec;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141517;
+        --fg: #e6e6e3;
+        --muted: #9a9ea6;
+        --rule: #2b2d31;
+        --link: #7aa7ec;
+        --code-bg: #1f2124;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 44rem; margin: 0 auto; padding: 4rem 1rem 3rem; }
+    h1 { font-size: 1.75rem; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 0.5rem; }
+    h2 {
+      font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted); margin: 3rem 0 0.5rem;
+    }
+    p { margin: 0 0 1rem; }
+    .lede { color: var(--muted); font-size: 1.05rem; }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      font: 0.9em/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px;
+    }
+    ol { list-style: none; padding: 0; margin: 0; counter-reset: ex; }
+    li { border-top: 1px solid var(--rule); padding: 1.25rem 0; }
+    li:last-child { border-bottom: 1px solid var(--rule); }
+    li h3 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.25rem; }
+    li h3::before {
+      counter-increment: ex; content: counter(ex, decimal-leading-zero);
+      color: var(--muted); font-weight: 400; margin-right: 0.6rem; font-variant-numeric: tabular-nums;
+    }
+    li p { margin: 0 0 0.5rem; }
+    .links { font-size: 0.9rem; }
+    .links a + a::before { content: "·"; color: var(--muted); margin: 0 0.5rem; }
+    .note { font-size: 0.9rem; color: var(--muted); }
+    footer { margin-top: 3rem; font-size: 0.9rem; color: var(--muted); }
+    footer a + a::before { content: "·"; margin: 0 0.5rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>marimo-flow</h1>
+  <p class="lede">Physics-informed neural networks with PINA, a multi-agent team that composes and trains them, and MLflow tracking, in reactive marimo notebooks.</p>
+  <p><code>pip install marimo-flow</code></p>
+
+  <h2>Examples</h2>
+  <ol>
+    <li>
+      <h3>PINN solver with MLflow tracking</h3>
+      <p>Poisson, heat or wave equation (default: Poisson on the unit square) solved with a PINN or SAPINN, runs logged to MLflow, plus an Optuna sweep. Training starts from a button, so this page shows the setup, not trained results.</p>
+      <p class="links"><a href="01_pina_poisson_solver.html">Rendered notebook</a><a href="https://github.com/synapticore-io/marimo-flow/blob/main/examples/01_pina_poisson_solver.py">Source</a></p>
+    </li>
+    <li>
+      <h3>3D lid-driven cavity</h3>
+      <p>Incompressible Navier–Stokes in a unit cube, composed from a declarative <code>ProblemSpec</code>: the spatial domain, training metrics and the <i>u<sub>x</sub></i> field on the mid-plane.</p>
+      <p class="links"><a href="03_navier_stokes_3d_cavity.html">Rendered notebook</a><a href="https://github.com/synapticore-io/marimo-flow/blob/main/examples/03_navier_stokes_3d_cavity.py">Source</a></p>
+    </li>
+    <li>
+      <h3>Model-predictive control of a heat rod</h3>
+      <p>A PINN surrogate of a 1D heat rod drives a rolling-horizon MPC loop, compared against the finite-difference plant.</p>
+      <p class="links"><a href="04_mpc_heat_rod.html">Rendered notebook</a><a href="https://github.com/synapticore-io/marimo-flow/blob/main/examples/04_mpc_heat_rod.py">Source</a></p>
+    </li>
+  </ol>
+
+  <p class="note" style="margin-top:1.25rem">These are static snapshots rendered in CI with the default parameters, so the controls on each page are inert. To run a notebook interactively, clone the repository and open it with <code>uvx marimo edit --sandbox examples/&lt;name&gt;.py</code>; the notebook declares its own dependencies.</p>
+
+  <footer>
+    <a href="https://github.com/synapticore-io/marimo-flow">GitHub</a><a href="https://pypi.org/project/marimo-flow/">PyPI</a><a href="https://github.com/synapticore-io/marimo-flow/blob/main/CHANGELOG.md">Changelog</a>
+  </footer>
+</main>
+</body>
+</html>

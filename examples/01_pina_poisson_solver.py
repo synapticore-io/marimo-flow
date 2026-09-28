@@ -290,8 +290,7 @@ def _(
 
 @app.cell
 def _(mlflow, mo, pl, problem_type):
-    mo.md("## Experiment History")
-
+    _heading = mo.md("## Experiment History")
     _experiment_name = f"pina-{problem_type.value.lower().replace(' ', '-')}"
     _runs = mlflow.search_runs(
         experiment_names=[_experiment_name],
@@ -300,7 +299,7 @@ def _(mlflow, mo, pl, problem_type):
     )
 
     if _runs.empty:
-        mo.output.replace(mo.md("_No runs yet._"))
+        mo.output.replace(mo.vstack([_heading, mo.md("_No runs yet._")]))
     else:
         _cols = [
             c
@@ -310,7 +309,9 @@ def _(mlflow, mo, pl, problem_type):
             )
         ]
         _runs_df = pl.from_pandas(_runs[_cols])
-        mo.output.replace(mo.ui.table(_runs_df, label="Previous Runs"))
+        mo.output.replace(
+            mo.vstack([_heading, mo.ui.table(_runs_df, label="Previous Runs")])
+        )
     return
 
 

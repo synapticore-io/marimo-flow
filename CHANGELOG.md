@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Example notebooks: several cell outputs were never displayed because they were not the cell's last expression — the headings in 03, half of the sliders in 03 and 04, the "Experiment History" heading in 01 and the preset table in 02. 04 shows its final losses as numbers instead of raw `tensor(...)` reprs.
+
+### Changed
+- GitHub Pages: a hand-written `site/index.html` replaces the generated gradient/emoji index; notebook exports omit the code (linked from the index) and no longer show warnings or runner paths; the Pages source is now the Actions workflow (it was still the legacy `/docs` build, which overwrote the deployment on every push).
+
 ## [0.4.3] - 2026-09-27
 
 ### Fixed
