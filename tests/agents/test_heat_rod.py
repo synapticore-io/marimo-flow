@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import torch
 
 from marimo_flow.agents.schemas import (
     ControlPlan,
@@ -40,11 +41,28 @@ def test_plant_stepper_advances_field():
     assert traj[-1, 0] > 0.0
 
 
+def test_seeded_surrogate_is_reproducible_and_leaves_global_rng():
+    plant = FiniteDifferenceHeatRod(nx=11, alpha=0.05, dt=0.01)
+    inputs, targets = generate_step_dataset(plant, 200, np.random.default_rng(0))
+
+    torch.manual_seed(123)
+    expected_next = torch.rand(1)
+    torch.manual_seed(123)
+    a = train_step_surrogate(inputs, targets, epochs=5, seed=7)
+    assert torch.equal(torch.rand(1), expected_next)
+
+    b = train_step_surrogate(inputs, targets, epochs=5, seed=7)
+    c = train_step_surrogate(inputs, targets, epochs=5, seed=8)
+    probes = [(0.0, 0.5), (0.3, 1.0), (0.6, 0.0)]
+    assert [a(*p) for p in probes] == [b(*p) for p in probes]
+    assert [a(*p) for p in probes] != [c(*p) for p in probes]
+
+
 def test_trained_surrogate_enables_mpc_step():
     rng = np.random.default_rng(0)
     plant = FiniteDifferenceHeatRod(nx=21, alpha=0.05, dt=0.01)
     inputs, targets = generate_step_dataset(plant, 400, rng)
-    predict = train_step_surrogate(inputs, targets, epochs=30)
+    predict = train_step_surrogate(inputs, targets, epochs=30, seed=0)
     surrogate = make_rollout_surrogate(predict)
 
     plan = ControlPlan(
@@ -66,7 +84,7 @@ def test_closed_loop_plant_moves_toward_setpoint():
     rng = np.random.default_rng(1)
     plant = FiniteDifferenceHeatRod(nx=11, alpha=0.05, dt=0.01)
     inputs, targets = generate_step_dataset(plant, 800, rng)
-    predict = train_step_surrogate(inputs, targets, epochs=60)
+    predict = train_step_surrogate(inputs, targets, epochs=60, seed=1)
     surrogate = make_rollout_surrogate(predict)
 
     loop_plant = FiniteDifferenceHeatRod(nx=11, alpha=0.05, dt=0.01)

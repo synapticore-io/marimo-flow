@@ -119,8 +119,13 @@ def train_step_surrogate(
     epochs: int = 200,
     lr: float = 1e-3,
     batch_size: int = 256,
+    seed: int | None = None,
 ) -> PredictStepFn:
-    """Fit a small MLP on plant rollouts; return a numpy predict callable."""
+    """Fit a small MLP on plant rollouts; return a numpy predict callable.
+
+    ``seed`` makes weight init and batch shuffling reproducible without
+    touching torch's global RNG state.
+    """
     if inputs.ndim != 2 or inputs.shape[1] != 2:
         raise ValueError("inputs must have shape (n, 2)")
     if targets.ndim != 2 or targets.shape[1] != 1:
@@ -139,13 +144,23 @@ def train_step_surrogate(
     x_norm = (inputs - x_mean) / x_std
     y_norm = (targets - y_mean) / y_std
 
-    layers: list[nn.Module] = []
-    in_dim = 2
-    for width in hidden:
-        layers.extend([nn.Linear(in_dim, width), nn.Tanh()])
-        in_dim = width
-    layers.append(nn.Linear(in_dim, 1))
-    model = nn.Sequential(*layers)
+    generator = torch.Generator()
+    if seed is None:
+        generator.seed()
+    else:
+        generator.manual_seed(seed)
+
+    # nn.Linear initialises from the global RNG; fork it so a seeded run
+    # neither depends on nor changes the caller's torch RNG state.
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(generator.initial_seed())
+        layers: list[nn.Module] = []
+        in_dim = 2
+        for width in hidden:
+            layers.extend([nn.Linear(in_dim, width), nn.Tanh()])
+            in_dim = width
+        layers.append(nn.Linear(in_dim, 1))
+        model = nn.Sequential(*layers)
 
     x_t = torch.tensor(x_norm, dtype=torch.float32)
     y_t = torch.tensor(y_norm, dtype=torch.float32)
@@ -154,7 +169,7 @@ def train_step_surrogate(
 
     n = len(x_t)
     for _ in range(epochs):
-        perm = torch.randperm(n)
+        perm = torch.randperm(n, generator=generator)
         for start in range(0, n, batch_size):
             idx = perm[start : start + batch_size]
             pred = model(x_t[idx])

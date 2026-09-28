@@ -12,8 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Dependency floors raised to the tested versions.** The old minimums allowed ancient, untested releases — e.g. `pina-mathlab>=0.2.6`, although the code uses the PINA 0.3 API (`pina.equation.zoo`); a `--resolution lowest-direct` install failed at import. Every direct dependency's floor now equals the version in `uv.lock`, so the lowest resolution pip can pick is exactly the tested set.
 - **Example notebooks declare their dependencies** (PEP 723: `marimo-flow>=0.4.3`). Without it marimo's sandbox auto-installed the unrelated PyPI package `pina` (pinch analysis) for `import pina`, which overwrites PINA's module → `ImportError: cannot import name 'Condition' from 'pina'`.
+- **Flaky `test_closed_loop_plant_moves_toward_setpoint`**: `train_step_surrogate` drew weight init and batch shuffling from torch's unseeded global RNG, so ~1 in 20 runs trained a surrogate that drove the MPC control to 0 (first caught by the new CI on py3.13). The tests now pass a fixed seed.
 
 ### Added
+- `train_step_surrogate(..., seed=...)`: reproducible weight init and shuffling via a local `torch.Generator` + `fork_rng`, leaving the caller's global torch RNG untouched.
 - **CI workflow + release gate** (`.github/workflows/ci.yml`): tests on `uv.lock` (py3.11/3.13, `uv sync --locked`, ruff), plus the built wheel installed without the lockfile — `highest` on py3.13 and `lowest-direct` on py3.11 — running the test suite against `site-packages` and executing the example notebooks. `python-publish.yml` now requires CI to pass and checks that the tag matches the `pyproject.toml` version.
 
 ### Changed
