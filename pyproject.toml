@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "marimo-flow"
-version = "0.4.3"
+version = "0.4.4"
 description = "Agentic scientific-computing platform: a reactive multi-agent team orchestrating PINA physics-informed neural-network workflows via pydantic-graph, with MLflow tracing/provenance and a marimo chat UI."
 readme = "README.md"
 requires-python = ">=3.11"

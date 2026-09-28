@@ -3,7 +3,7 @@
 # dependencies = [
 #     # Pulls pina-mathlab, torch, plotly, ... Declared explicitly so marimo's
 #     # sandbox does not auto-install the unrelated PyPI package "pina".
-#     "marimo-flow>=0.4.3",
+#     "marimo-flow>=0.4.4",
 # ]
 # ///
 

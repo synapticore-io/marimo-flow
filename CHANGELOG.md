@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-09-29
+
 ### Fixed
 - **MPC never optimised with PINN/torch surrogates.** SLSQP's default finite-difference step (~1.5e-8) is below float32 resolution, so the objective did not change, the gradient was zero and every `run_mpc_step` returned the initial guess after one iteration (the 04 demo held `u` at 0.5 throughout). SLSQP now uses `jac="2-point"` with a sqrt(float32 eps) relative step.
 - **04 MPC demo defaults were unreachable.** With the rod held at 0 on the left, the steady mean is `u / 2 ≤ 0.5`, so the 0.6 setpoint could never be met, and 30 steps at `alpha=0.08` covered a fraction of one time constant. Now `alpha=0.5`, 60 steps, setpoint 0.3 (slider capped at 0.5); final tracking error 0.0002 instead of 0.51.
@@ -264,7 +266,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **0.1.1** (2025-07-14) - Docker and CI/CD improvements
 - **0.1.0** (2025-07-08) - Initial release
 
-[Unreleased]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.4...HEAD
+[0.4.4]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/synapticore-io/marimo-flow/compare/v0.4.0...v0.4.1
