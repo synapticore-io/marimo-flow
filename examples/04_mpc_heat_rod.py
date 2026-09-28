@@ -22,6 +22,9 @@ import marimo
 __generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
+with app.setup:
+    ALPHA = 0.5
+
 
 @app.cell
 def _header():
@@ -33,7 +36,13 @@ def _header():
         "1. **ProblemSpec** — 1D heat equation, ``T(1)=u`` (parametric BC)\n"
         "2. **PINN** — `compose_problem` → `train_solver`\n"
         "3. **Surrogate** — PINN field mean → MPC rollout\n"
-        "4. **Plant** — finite-difference ground truth in the closed loop"
+        "4. **Plant** — finite-difference ground truth in the closed loop\n"
+        "\n"
+        "The rod is held at 0 on the left and at `u` ≤ 1 on the right, so the "
+        "steady mean temperature is `u / 2`: setpoints above 0.5 are "
+        "physically unreachable. The surrogate is biased; offset-free MPC "
+        "estimates that bias as a disturbance `d` and removes the "
+        "steady-state error."
     )
     return (mo,)
 
@@ -41,11 +50,11 @@ def _header():
 @app.cell
 def _controls(mo):
     setpoint = mo.ui.slider(
-        start=0.0, stop=1.0, step=0.05, value=0.6, label="mean-T setpoint"
+        start=0.0, stop=0.5, step=0.05, value=0.3, label="mean-T setpoint"
     )
     horizon = mo.ui.slider(start=3, stop=20, step=1, value=8, label="MPC horizon")
     n_steps = mo.ui.slider(
-        start=10, stop=60, step=5, value=30, label="closed-loop steps"
+        start=10, stop=100, step=10, value=60, label="closed-loop steps"
     )
     max_epochs = mo.ui.slider(
         start=20, stop=200, step=10, value=80, label="PINN epochs"
@@ -67,7 +76,9 @@ def _compose():
     from marimo_flow.agents.services.composer import compose_problem
     from marimo_flow.control.heat_rod import build_heat_rod_problem_spec
 
-    spec = build_heat_rod_problem_spec(alpha=0.08)
+    # alpha = 0.5 gives a slowest time constant of 1/(alpha*pi^2) ~ 0.2, so
+    # the rod settles within the PINN's t in [0, 1] and 60 steps of dt=0.01.
+    spec = build_heat_rod_problem_spec(alpha=ALPHA)
     problem = compose_problem(spec)()
     return problem, spec
 
@@ -103,7 +114,8 @@ def _wire_dynamics(solver):
     from marimo_flow.control.heat_rod import FiniteDifferenceHeatRod, make_plant_stepper
     from marimo_flow.control.pinn_surrogate import make_pinn_rollout_surrogate
 
-    plant = FiniteDifferenceHeatRod(nx=21, alpha=0.08, dt=0.01)
+    # nx=11 keeps the explicit FTCS scheme stable: alpha*dt/dx^2 = 0.5.
+    plant = FiniteDifferenceHeatRod(nx=11, alpha=ALPHA, dt=0.01)
     plant.set_uniform(0.0)
     dt = 0.01
     surrogate = make_pinn_rollout_surrogate(
@@ -165,12 +177,22 @@ def _run_mpc(dt, horizon, mo, n_steps, setpoint, surrogate, true_dynamics):
     )
     ctrl_fig.update_layout(title="Applied boundary temperature", yaxis_title="u")
 
+    dist_fig = go.Figure()
+    dist_fig.add_trace(
+        go.Scatter(y=traj["disturbance"][:, 0], mode="lines", name="d (estimate)")
+    )
+    dist_fig.update_layout(
+        title="Surrogate bias estimated by the offset-free observer",
+        yaxis_title="d",
+    )
+
     final_err = abs(states[-1] - setpoint.value)
     mo.vstack(
         [
             mo.md(f"Final tracking error |T_mean − setpoint| = **{final_err:.4f}**."),
             mo.ui.plotly(fig),
             mo.ui.plotly(ctrl_fig),
+            mo.ui.plotly(dist_fig),
         ]
     )
     return

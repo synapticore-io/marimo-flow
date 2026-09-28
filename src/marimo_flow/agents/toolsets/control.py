@@ -115,7 +115,11 @@ def closed_loop_simulation(
     true_dynamics_registry_key: str,
     n_steps: int = 20,
 ) -> dict[str, list[list[float]]]:
-    """Run a closed-loop rollout and return the state / control trajectory."""
+    """Run an offset-free closed-loop rollout.
+
+    Returns the state and control trajectories plus ``disturbance``, the
+    observer's estimate of the surrogate's bias at each step.
+    """
     from marimo_flow.control.mpc import simulate_closed_loop
 
     plan_model = ControlPlan.model_validate(plan)
@@ -135,4 +139,5 @@ def closed_loop_simulation(
     return {
         "states": traj["states"].tolist(),
         "controls": traj["controls"].tolist(),
+        "disturbance": traj["disturbance"].tolist(),
     }

@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **MPC never optimised with PINN/torch surrogates.** SLSQP's default finite-difference step (~1.5e-8) is below float32 resolution, so the objective did not change, the gradient was zero and every `run_mpc_step` returned the initial guess after one iteration (the 04 demo held `u` at 0.5 throughout). SLSQP now uses `jac="2-point"` with a sqrt(float32 eps) relative step.
+- **04 MPC demo defaults were unreachable.** With the rod held at 0 on the left, the steady mean is `u / 2 ≤ 0.5`, so the 0.6 setpoint could never be met, and 30 steps at `alpha=0.08` covered a fraction of one time constant. Now `alpha=0.5`, 60 steps, setpoint 0.3 (slider capped at 0.5); final tracking error 0.0002 instead of 0.51.
 - Example notebooks: several cell outputs were never displayed because they were not the cell's last expression — the headings in 03, half of the sliders in 03 and 04, the "Experiment History" heading in 01 and the preset table in 02. 04 shows its final losses as numbers instead of raw `tensor(...)` reprs.
+
+### Added
+- **Offset-free MPC**: `simulate_closed_loop(..., offset_free=True, disturbance_gain=0.3)` runs an integrating output-disturbance observer, so a biased surrogate leaves no steady-state error; `run_mpc_step(..., disturbance=...)` plans on `surrogate + d`. The trajectory (and the `closed_loop_simulation` agent tool) now also returns `disturbance`.
 
 ### Changed
 - GitHub Pages: a hand-written `site/index.html` replaces the generated gradient/emoji index; notebook exports omit the code (linked from the index) and no longer show warnings or runner paths; the Pages source is now the Actions workflow (it was still the legacy `/docs` build, which overwrote the deployment on every push).

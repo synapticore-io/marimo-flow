@@ -63,6 +63,10 @@ No hardcoded `ProblemKind`. Agents compose PDEs from primitives:
   augmented-Lagrangian handler for PDE-constrained optimisation.
 - `src/marimo_flow/control/` — rolling-horizon scipy SLSQP MPC
   (`run_mpc_step`, `simulate_closed_loop`). No casadi / do-mpc.
+  SLSQP uses `jac="2-point"` with a sqrt(float32 eps) step — the default
+  ~1.5e-8 step is below float32 resolution, so torch/PINN surrogates gave a
+  zero gradient and the optimizer never moved. `simulate_closed_loop` is
+  offset-free by default (integrating output-disturbance observer, gain 0.3).
 - `core/viz3d.py` — plotly `Mesh3d`/`Volume`/`Scatter3d`/`Isosurface`
   for 3D domain + field visualisation. **No pyvista** (avoid 150 MB
   VTK stack).
