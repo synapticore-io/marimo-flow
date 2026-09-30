@@ -23,7 +23,12 @@ Reactive Python notebooks with MLflow tracking and PINA physics-informed neural 
   wheel installed without the lockfile (`highest` py3.13, `lowest-direct`
   py3.11) + example notebooks. `python-publish.yml` needs it and checks
   tag == `pyproject.toml` version.
-- Release: `uv version --bump patch` → CHANGELOG → commit → tag `vX.Y.Z` → push.
+- Release: `uv version --bump patch` → CHANGELOG → commit → push → wait for
+  green CI → tag `vX.Y.Z` → push tag.
+- `main` requires the four `ci.yml` jobs (branch protection, admins may push
+  directly). Dependabot (`.github/dependabot.yml`, weekly uv + actions,
+  `versioning-strategy: increase`) auto-merges minor/patch only after CI.
+  Renaming a CI job means updating the required checks too.
 
 ## MCP Servers
 

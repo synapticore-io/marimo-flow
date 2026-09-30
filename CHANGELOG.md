@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Dropped the unused `diskcache` dependency: nothing imports it and no other package requires it, so the last open Dependabot alert (no upstream fix, #32) is gone with it.
+
+### Added
+- `.github/dependabot.yml`: weekly version updates for `uv` (`versioning-strategy: increase`, so floors keep tracking the lock; 3-day cooldown; minor+patch grouped) and GitHub Actions. `main` now requires the four CI jobs, so the existing Dependabot auto-merge waits for green CI instead of merging immediately.
+
 ## [0.4.4] - 2026-09-29
 
 ### Fixed
