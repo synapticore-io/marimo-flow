@@ -25,7 +25,7 @@ jobs:
     needs: [ci]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v10.2.0
 
@@ -70,7 +70,7 @@ jobs:
       contents: write
       actions: write  # required for `gh workflow run docker-publish.yml`
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: python-package-distributions
