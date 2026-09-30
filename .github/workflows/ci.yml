@@ -22,7 +22,7 @@ jobs:
       matrix:
         python: ["3.11", "3.13"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: ${{ matrix.python }}
@@ -52,7 +52,7 @@ jobs:
           - python: "3.11"
             resolution: lowest-direct
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: ${{ matrix.python }}
