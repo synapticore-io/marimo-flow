@@ -85,6 +85,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Native-SDK LLM providers; OpenAI-compatible ones (openai, ollama, openrouter,
+# deepseek, ...) already work with the base install.
+providers = [
+    "pydantic-ai-slim[anthropic,google,groq,mistral,xai]>=2.66.0",
+]
 all = [
     "torch>=2.15.0",
     "torch-geometric>=2.8.1",

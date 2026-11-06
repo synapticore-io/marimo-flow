@@ -8,60 +8,53 @@ tests noticing.
 
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
+
 import numpy as np
+import torch
+from pina import LabelTensor
 
 from marimo_flow.agents.schemas import (
-    ConditionSpec,
     ControlPlan,
     ControlVariableSpec,
-    DerivativeSpec,
-    EquationSpec,
-    ProblemSpec,
     StateSpec,
-    SubdomainSpec,
 )
 from marimo_flow.agents.services.composer import compose_problem
 from marimo_flow.control import make_rollout_surrogate, run_mpc_step
 
 
-def test_ns3d_cavity_demo_composes():
-    box = {"x": [0.0, 1.0], "y": [0.0, 1.0], "z": [0.0, 1.0]}
-    spec = ProblemSpec(
-        name="ns3d_cavity_demo",
-        output_variables=["ux", "uy", "uz", "p"],
-        domain_bounds=box,
-        subdomains=[
-            SubdomainSpec(name="D", bounds=box),
-            SubdomainSpec(name="lid", bounds={**box, "z": 1.0}),
-            SubdomainSpec(name="floor", bounds={**box, "z": 0.0}),
-        ],
-        equations=[
-            EquationSpec(
-                name="mom_x",
-                form="ux*ux_x + uy*ux_y + uz*ux_z + p_x - nu*(ux_xx + ux_yy + ux_zz)",
-                outputs=["ux", "uy", "uz", "p"],
-                derivatives=[
-                    DerivativeSpec(name="ux_x", field="ux", wrt=["x"]),
-                    DerivativeSpec(name="ux_y", field="ux", wrt=["y"]),
-                    DerivativeSpec(name="ux_z", field="ux", wrt=["z"]),
-                    DerivativeSpec(name="ux_xx", field="ux", wrt=["x", "x"]),
-                    DerivativeSpec(name="ux_yy", field="ux", wrt=["y", "y"]),
-                    DerivativeSpec(name="ux_zz", field="ux", wrt=["z", "z"]),
-                    DerivativeSpec(name="p_x", field="p", wrt=["x"]),
-                ],
-                parameters={"nu": 0.1},
-            ),
-        ],
-        conditions=[
-            ConditionSpec(subdomain="D", kind="equation", equation_name="mom_x"),
-            ConditionSpec(subdomain="floor", kind="fixed_value", value=0.0),
-            ConditionSpec(subdomain="lid", kind="fixed_value", value=1.0),
-        ],
-    )
-    problem = compose_problem(spec)()
+def _load_notebook(name: str):
+    path = Path(__file__).resolve().parents[2] / "examples" / name
+    module_spec = importlib.util.spec_from_file_location(path.stem, path)
+    module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(module)
+    return module
+
+
+def test_ns3d_cavity_demo_composes_full_navier_stokes():
+    """Runs the notebook's own spec cell, so the demo cannot drift."""
+    notebook = _load_notebook("03_navier_stokes_3d_cavity.py")
+    _, defs = notebook._build_spec.run(cfg={"viscosity": 0.1, "lid_speed": 1.0})
+    problem = compose_problem(defs["spec"])()
     assert problem.input_variables == ["x", "y", "z"]
     assert problem.output_variables == ["ux", "uy", "uz", "p"]
-    assert {"D", "lid", "floor"}.issubset(problem.domains.keys())
+    walls = {"lid", "floor", "xlow", "xhigh", "ylow", "yhigh"}
+    assert set(problem.conditions) == {"D"} | walls
+
+    pts = LabelTensor(torch.rand(16, 3), ["x", "y", "z"])
+    pts.requires_grad_(True)
+    x, y, z = (pts.extract([a]) for a in ("x", "y", "z"))
+    out = LabelTensor(
+        torch.cat([torch.sin(x) * y, x * z, y * z, x + y + z], dim=1),
+        ["ux", "uy", "uz", "p"],
+    )
+    # Momentum x/y/z + continuity in the interior.
+    assert problem.conditions["D"].equation.residual(pts, out).shape == (16, 4)
+    # Lid pins the three velocity components to (1, 0, 0), not the pressure.
+    lid = problem.conditions["lid"].equation.residual(pts, out)
+    expected = out.extract(["ux", "uy", "uz"]) - torch.tensor([1.0, 0.0, 0.0])
+    assert torch.allclose(lid, expected)
 
 
 def test_heat_rod_demo_composes_and_mpc_step_runs():

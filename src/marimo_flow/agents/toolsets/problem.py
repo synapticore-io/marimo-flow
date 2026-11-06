@@ -59,8 +59,10 @@ def compose_problem(
               ``form`` (sympy expression), ``outputs``, ``derivatives``
               (explicit name→field+wrt), and ``parameters`` (scalar).
             * ``conditions``: list of ``{subdomain, kind, ...}`` entries
-              mapping each subdomain to either a ``fixed_value`` (Dirichlet)
-              or an ``equation`` (interior residual / custom BC/IC).
+              mapping each subdomain to either a ``fixed_value`` (Dirichlet;
+              ``value`` pins every output, ``values={field: v}`` only the
+              named ones) or an ``equation`` (interior residual / custom
+              BC/IC; ``equation_names=[...]`` enforces a coupled system).
             * ``name``: optional label, reused if the agent later
               registers this composition as a preset.
 

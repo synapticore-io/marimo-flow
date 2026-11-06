@@ -35,7 +35,7 @@ import sympy
 import torch
 from pina import Condition, LabelTensor
 from pina.domain import CartesianDomain
-from pina.equation import Equation
+from pina.equation import Equation, SystemEquation
 from pina.equation.zoo import FixedValue
 from pina.operator import grad, laplacian
 from pina.problem import InverseProblem, SpatialProblem, TimeDependentProblem
@@ -288,9 +288,26 @@ def _compile_condition(
     input_names: set[str] | None = None,
 ) -> Condition:
     if cond.kind == "fixed_value":
+        if cond.values:
+            unknown = set(cond.values) - set(output_variables or [])
+            if output_variables and unknown:
+                raise ValueError(
+                    f"condition on '{cond.subdomain}' pins unknown fields "
+                    f"{sorted(unknown)}"
+                )
+            return Condition(
+                domain=cond.subdomain,
+                equation=SystemEquation(
+                    [
+                        FixedValue(float(v), components=[f])
+                        for f, v in cond.values.items()
+                    ]
+                ),
+            )
         if cond.value is None:
             raise ValueError(
-                f"condition on '{cond.subdomain}' kind='fixed_value' needs value"
+                f"condition on '{cond.subdomain}' kind='fixed_value' needs "
+                "value or values"
             )
         return Condition(domain=cond.subdomain, equation=FixedValue(cond.value))
     if cond.kind == "parametric_dirichlet":
@@ -313,6 +330,14 @@ def _compile_condition(
                 unknown_names=unknown_names,
                 input_names=input_names,
             )
+        elif cond.equation_names:
+            missing = [n for n in cond.equation_names if n not in equations]
+            if missing:
+                raise ValueError(
+                    f"condition on '{cond.subdomain}' references unknown "
+                    f"equations {missing}"
+                )
+            eq = SystemEquation([equations[n] for n in cond.equation_names])
         elif cond.equation_name is not None:
             eq = equations.get(cond.equation_name)
             if eq is None:
@@ -323,7 +348,7 @@ def _compile_condition(
         else:
             raise ValueError(
                 f"condition on '{cond.subdomain}' kind='equation' needs "
-                "either equation_name or equation_inline"
+                "equation_name, equation_names or equation_inline"
             )
         return Condition(domain=cond.subdomain, equation=eq)
     raise ValueError(f"unknown condition kind: {cond.kind!r}")

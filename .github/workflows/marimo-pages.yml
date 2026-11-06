@@ -32,6 +32,15 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --no-dev
 
+      # mo.persistent_cache stores trained weights here; restoring it skips
+      # the CPU training (03 runs thousands of steps) when nothing changed.
+      - name: Restore marimo training cache
+        uses: actions/cache@v6
+        with:
+          path: examples/__marimo__/cache
+          key: marimo-cache-${{ hashFiles('examples/*.py', 'uv.lock', 'src/**/*.py') }}
+          restore-keys: marimo-cache-
+
       # Static export, not html-wasm: the notebooks need torch/PINA, which
       # Pyodide cannot provide. marimo runs each notebook once here and
       # embeds the outputs; 02 (local provenance DB) and lab (LLM chat) are

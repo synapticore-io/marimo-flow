@@ -83,9 +83,15 @@ jobs:
       - name: Tests against installed wheel
         run: /tmp/wheel-env/bin/python -m pytest -q
 
+      # Reduced step counts via mo.cli_args(): the gate checks that every cell
+      # runs, the full defaults (minutes of CPU training) run on GitHub Pages.
       - name: Run example notebooks
         run: |
-          for name in 01_pina_poisson_solver 03_navier_stokes_3d_cavity 04_mpc_heat_rod; do
+          run() {
+            name=$1; shift
             /tmp/wheel-env/bin/python -m marimo export html "examples/$name.py" \
-              -o "/tmp/$name.html" --no-sandbox -f
-          done
+              -o "/tmp/$name.html" --no-sandbox -f -- "$@"
+          }
+          run 01_pina_poisson_solver --epochs 50 --trials 2 --trial-epochs 20
+          run 03_navier_stokes_3d_cavity --max-epochs 50
+          run 04_mpc_heat_rod --max-epochs 20

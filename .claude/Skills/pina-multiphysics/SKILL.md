@@ -45,6 +45,14 @@ descent.
    SubdomainSpec(name="D_elastic", bounds={"x": [0,1], "y": [0,1]}),
    ```
 
+   Alternative with one shared point set: a single interior subdomain
+   with ``ConditionSpec(subdomain="D", kind="equation",
+   equation_names=["heat", "elastic"])`` (PINA ``SystemEquation``). The
+   3D Navier–Stokes demo (``examples/03_navier_stokes_3d_cavity.py``)
+   uses this for momentum x/y/z + continuity. For multi-output walls use
+   ``kind="fixed_value", values={"ux": 0.0, "uy": 0.0}`` — a bare
+   ``value`` would pin every output, pressure included.
+
 3. Declare each PDE as its own ``EquationSpec``. List in ``outputs``
    only the fields that appear in the **coupling term** of that
    equation — the composer only extracts those from ``output_``.

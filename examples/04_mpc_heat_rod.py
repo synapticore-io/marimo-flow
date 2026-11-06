@@ -3,7 +3,7 @@
 # dependencies = [
 #     # Pulls pina-mathlab, torch, plotly, ... Declared explicitly so marimo's
 #     # sandbox does not auto-install the unrelated PyPI package "pina".
-#     "marimo-flow>=0.4.4",
+#     "marimo-flow>=0.4.5",
 # ]
 # ///
 
@@ -42,7 +42,10 @@ def _header():
         "steady mean temperature is `u / 2`: setpoints above 0.5 are "
         "physically unreachable. The surrogate is biased; offset-free MPC "
         "estimates that bias as a disturbance `d` and removes the "
-        "steady-state error."
+        "steady-state error.\n\n"
+        "PINN weights are cached on disk (`mo.persistent_cache`), so re-runs "
+        "with the same epochs / points skip training. "
+        "`marimo export html ... -- --max-epochs 20` shrinks the run for CI."
     )
     return (mo,)
 
@@ -57,7 +60,11 @@ def _controls(mo):
         start=10, stop=100, step=10, value=60, label="closed-loop steps"
     )
     max_epochs = mo.ui.slider(
-        start=20, stop=200, step=10, value=80, label="PINN epochs"
+        start=20,
+        stop=200,
+        step=10,
+        value=int(mo.cli_args().get("max-epochs", 80)),
+        label="PINN epochs",
     )
     n_points = mo.ui.slider(
         start=1000, stop=8000, step=1000, value=3000, label="collocation points"
@@ -85,28 +92,42 @@ def _compose():
 
 @app.cell
 def _train_pinn(mo, max_epochs, n_points, problem):
+    import torch
+
     from marimo_flow.core import ModelManager, SolverManager, train_solver
 
-    model = ModelManager.create("feedforward", problem=problem, layers=[32, 32])
-    solver = SolverManager.create(
-        "pinn", problem=problem, model=model, learning_rate=1e-3
+    def _build():
+        model = ModelManager.create("feedforward", problem=problem, layers=[32, 32])
+        solver = SolverManager.create(
+            "pinn", problem=problem, model=model, learning_rate=1e-3
+        )
+        return model, solver
+
+    @mo.persistent_cache
+    def train_heat_rod(epochs: int, points: int, alpha: float):
+        torch.manual_seed(0)
+        model, solver = _build()
+        trainer = train_solver(
+            solver,
+            max_epochs=epochs,
+            accelerator="cpu",
+            n_points=points,
+            sample_mode="random",
+        )
+        state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+        return state, {k: float(v) for k, v in trainer.callback_metrics.items()}
+
+    _state, pinn_metrics = train_heat_rod(
+        int(max_epochs.value), int(n_points.value), ALPHA
     )
-    trainer = train_solver(
-        solver,
-        max_epochs=int(max_epochs.value),
-        accelerator="cpu",
-        n_points=int(n_points.value),
-        sample_mode="random",
-    )
+    model, solver = _build()
+    model.load_state_dict(_state)
     mo.md(
         f"PINN trained for **{max_epochs.value}** epochs "
         f"({n_points.value} collocation points). "
-        "Final losses: "
-        + ", ".join(
-            f"`{k}` {float(v):.4f}" for k, v in trainer.callback_metrics.items()
-        )
+        "Final losses: " + ", ".join(f"`{k}` {v:.4f}" for k, v in pinn_metrics.items())
     )
-    return solver, trainer
+    return pinn_metrics, solver
 
 
 @app.cell
