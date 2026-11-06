@@ -152,7 +152,7 @@ def build_lead_agent(*, model=None, deps: FlowDeps | None = None) -> Agent:
     pass ``deps`` to ``agent.run(..., deps=...)`` at run time."""
     _ensure_tracking_uri(deps.mlflow_tracking_uri if deps else None)
     _ensure_autolog()
-    model = model or get_model("lead")
+    model = model or (deps.model_for("lead") if deps else get_model("lead"))
     return Agent(
         model,
         deps_type=FlowDeps,

@@ -155,6 +155,33 @@ endpoint). Copy [`config.yaml.example`](config.yaml.example) to
 `config.yaml` to point any role at OpenAI, Anthropic, Groq, … — auth
 comes from each provider's standard env var.
 
+#### One provider per role
+
+Each of the 10 roles (`route`, `triage`, `notebook`, `problem`, `model`,
+`solver`, `training`, `validation`, `mlflow`, `lead`) takes a
+`"<provider>:<model>"` string, resolved by pydantic-ai's `infer_model`.
+Precedence: `MARIMO_FLOW_MODEL_<ROLE>` env var > `config.yaml` > built-in
+default. Roles you do not set keep their default.
+
+```yaml
+# config.yaml
+models:
+  lead:       openai:gpt-5                          # needs OPENAI_API_KEY
+  validation: openrouter:anthropic/claude-sonnet-4.6  # needs OPENROUTER_API_KEY
+  # every other role stays on its Ollama default
+```
+
+```bash
+MARIMO_FLOW_MODEL_SOLVER=openai:gpt-5 uv run marimo-flow solve "..."
+uv run marimo-flow config-show   # check what each role resolved to
+```
+
+The base install ships only the OpenAI SDK, which covers `openai:`,
+`ollama:`, `openrouter:`, `deepseek:`, `together:`, `fireworks:` and other
+OpenAI-compatible providers. Native SDK providers need their pydantic-ai
+extra, e.g. `uv add "pydantic-ai-slim[anthropic]"` for `anthropic:` or
+`[groq]` for `groq:`.
+
 Prefer a terminal? The CLI runs the same graph:
 
 ```bash
@@ -210,7 +237,7 @@ All notebooks live in `examples/` and open with
 | **`02_provenance_dashboard.py`** | DuckDB review surface over the agent provenance store. Five tables (tasks, experiments, decisions, validation, handoffs) + 3D preset preview. |
 | **`03_navier_stokes_3d_cavity.py`** | 3D lid-driven cavity composed end-to-end from a declarative `ProblemSpec`. No hardcoded NS factory. Plotly mid-plane velocity slice. |
 | **`04_mpc_heat_rod.py`** | Closed-loop MPC on a 1D heat-rod PINN surrogate. Trains the surrogate, then drives a rolling-horizon scipy-SLSQP MPC loop toward a temperature setpoint. |
-| **`lab.py`** | Multi-agent PINA team chat demo (requires Ollama running locally). |
+| **`lab.py`** | Multi-agent PINA team chat demo. Uses the models from `config.yaml` / `MARIMO_FLOW_MODEL_<ROLE>` and names any role whose provider credentials are missing. |
 
 ## Project Structure 📁
 

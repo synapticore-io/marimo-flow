@@ -7,8 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-11-06
+
 ### Security
 - Dropped the unused `diskcache` dependency: nothing imports it and no other package requires it, so the last open Dependabot alert (no upstream fix, #32) is gone with it.
+- Dependencies refreshed via `uv lock --upgrade` (supersedes the open Dependabot PRs); every direct floor in `pyproject.toml` raised to its locked version.
+
+### Fixed
+- **The lead agent ignored `FlowDeps.models["lead"]`.** `build_lead_agent` re-resolved the role from config instead of using the passed `deps`, and `lead_chat` did not pass `deps` at all, so a per-session lead model (and the session's MLflow URI) was silently replaced by the config default. Both now use the given `FlowDeps`.
+- **`get_model` set `OLLAMA_BASE_URL` for every provider.** The local Ollama default is now seeded only for `ollama:` specs; other providers resolve without touching the environment.
+- **`examples/lab.py` required a local Ollama.** It overwrote `OLLAMA_BASE_URL` from a text field on every run. It now takes all models from `config.yaml` / `MARIMO_FLOW_MODEL_<ROLE>` / defaults, shows the resolved role→model table, and stops with a message naming each role's spec, its default and the error when a provider key or SDK is missing. MLflow and marimo-MCP fields default to the resolved config instead of hard-coded URIs.
+
+### Changed
+- Notable bumps: pydantic-ai-slim / pydantic-graph 2.49 → 2.66, mlflow 3.16 → 3.18, torch 2.14 → 2.15, transformers 5.17 → 5.22, fastmcp 4.0 → 4.1, protobuf 6 → 7, pillow 12 → 13, ruff 0.16 → 0.17. No code changes were needed; 241 tests pass.
+- DuckDB (transitive via `marimo[sql]`) 1.5 → 2.0. Existing `provenance.duckdb` files open unchanged; a file written by 2.0 may not open in an older DuckDB 1.x client.
+- pydantic-ai renamed the `google-gla:` prefix to `google:`. Docs (`deps.py`, `config.yaml.example`) no longer list provider names and point at pydantic-ai's catalogue instead.
+- README: new "One provider per role" section — precedence (env > `config.yaml` > default), a mixed-provider example, and which providers need an extra (`anthropic`, `groq`, …) because the base install ships only the OpenAI SDK.
 
 ### Added
 - `.github/dependabot.yml`: weekly version updates for `uv` (`versioning-strategy: increase`, so floors keep tracking the lock; 3-day cooldown; minor+patch grouped) and GitHub Actions. `main` now requires the four CI jobs, so the existing Dependabot auto-merge waits for green CI instead of merging immediately.
