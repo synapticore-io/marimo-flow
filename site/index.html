@@ -71,12 +71,12 @@
   <ol>
     <li>
       <h3>PINN solver with MLflow tracking</h3>
-      <p>Poisson, heat or wave equation (default: Poisson on the unit square) solved with a PINN or SAPINN, runs logged to MLflow, plus an Optuna sweep. Training starts from a button, so this page shows the setup, not trained results.</p>
+      <p>Poisson, heat or wave equation (default: Poisson on the unit square) solved with a PINN or SAPINN: the trained solution, its error against the exact Poisson solution, MLflow run history and an Optuna sweep.</p>
       <p class="links"><a href="01_pina_poisson_solver.html">Rendered notebook</a><a href="https://github.com/synapticore-io/marimo-flow/blob/main/examples/01_pina_poisson_solver.py">Source</a></p>
     </li>
     <li>
       <h3>3D lid-driven cavity</h3>
-      <p>Incompressible Navier–Stokes in a unit cube, composed from a declarative <code>ProblemSpec</code>: the spatial domain, training metrics and the <i>u<sub>x</sub></i> field on the mid-plane.</p>
+      <p>Steady incompressible Navier–Stokes in a unit cube — three momentum equations plus continuity — composed from a declarative <code>ProblemSpec</code>: PDE residuals at fresh points, wall slip, centerline profiles and the flow on the mid-plane.</p>
       <p class="links"><a href="03_navier_stokes_3d_cavity.html">Rendered notebook</a><a href="https://github.com/synapticore-io/marimo-flow/blob/main/examples/03_navier_stokes_3d_cavity.py">Source</a></p>
     </li>
     <li>

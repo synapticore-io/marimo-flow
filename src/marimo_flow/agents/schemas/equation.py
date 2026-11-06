@@ -129,6 +129,10 @@ class ConditionSpec(BaseModel):
     ``output_field = u`` on the subdomain (``u`` sampled as an input).
     ``equation_inline`` is an escape hatch for one-off conditions
     (e.g. a custom IC) that shouldn't clutter the top-level equations list.
+    ``kind="fixed_value"`` + ``values={"ux": 1.0, "uy": 0.0}`` → per-field
+    Dirichlet; ``value`` alone pins *every* output (pressure included).
+    ``kind="equation"`` + ``equation_names=[...]`` → a coupled system
+    (e.g. momentum + continuity) enforced on one subdomain.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -136,7 +140,15 @@ class ConditionSpec(BaseModel):
     subdomain: str
     kind: ConditionKind
     value: float | None = None
+    values: dict[str, float] | None = Field(
+        default=None,
+        description="per-field Dirichlet values for kind='fixed_value'",
+    )
     equation_name: str | None = None
+    equation_names: list[str] | None = Field(
+        default=None,
+        description="several equations enforced together on this subdomain",
+    )
     equation_inline: EquationSpec | None = None
     parameter_name: str | None = Field(
         default=None,

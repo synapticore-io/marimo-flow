@@ -178,9 +178,12 @@ uv run marimo-flow config-show   # check what each role resolved to
 
 The base install ships only the OpenAI SDK, which covers `openai:`,
 `ollama:`, `openrouter:`, `deepseek:`, `together:`, `fireworks:` and other
-OpenAI-compatible providers. Native SDK providers need their pydantic-ai
-extra, e.g. `uv add "pydantic-ai-slim[anthropic]"` for `anthropic:` or
-`[groq]` for `groq:`.
+OpenAI-compatible providers. The `providers` extra adds the native SDKs for
+`anthropic:`, `google:`, `groq:`, `mistral:` and `xai:`:
+
+```bash
+pip install "marimo-flow[providers]"     # or: uv add "marimo-flow[providers]"
+```
 
 Prefer a terminal? The CLI runs the same graph:
 
@@ -231,11 +234,19 @@ to running notebook.
 All notebooks live in `examples/` and open with
 `uv run marimo edit examples/<file>.py`.
 
+01, 03 and 04 train with their defaults on load, so they also run headless
+(`marimo export html`, `python examples/<file>.py`). Settings sit in a form;
+**Train** reruns with new values. Trained weights are cached on disk via
+`mo.persistent_cache` (`examples/__marimo__/cache/`), so re-opening a notebook
+or returning to an earlier configuration skips training. Shrink a run without
+editing code: `marimo export html examples/03_navier_stokes_3d_cavity.py -- --max-epochs 50`
+(01: `--epochs`, `--trials`, `--trial-epochs`; 04: `--max-epochs`).
+
 | Notebook | What it does |
 |---|---|
-| **`01_pina_poisson_solver.py`** | Poisson PDE with baseline PINN or Walrus foundation model. MLflow + Optuna sweep analytics. Uses `marimo_flow.core` directly. |
+| **`01_pina_poisson_solver.py`** | Poisson / heat / wave PDE with baseline PINN or Walrus foundation model; solution plot and, for Poisson, the error against the exact solution. MLflow + Optuna sweep analytics. Uses `marimo_flow.core` directly. |
 | **`02_provenance_dashboard.py`** | DuckDB review surface over the agent provenance store. Five tables (tasks, experiments, decisions, validation, handoffs) + 3D preset preview. |
-| **`03_navier_stokes_3d_cavity.py`** | 3D lid-driven cavity composed end-to-end from a declarative `ProblemSpec`. No hardcoded NS factory. Plotly mid-plane velocity slice. |
+| **`03_navier_stokes_3d_cavity.py`** | Steady incompressible Navier–Stokes in a 3D lid-driven cavity (three momentum equations + continuity, velocity-only no-slip walls), composed from a declarative `ProblemSpec`. Shows PDE residuals at fresh points, wall slip, centerline profiles and the mid-plane flow. |
 | **`04_mpc_heat_rod.py`** | Closed-loop MPC on a 1D heat-rod PINN surrogate. Trains the surrogate, then drives a rolling-horizon scipy-SLSQP MPC loop toward a temperature setpoint. |
 | **`lab.py`** | Multi-agent PINA team chat demo. Uses the models from `config.yaml` / `MARIMO_FLOW_MODEL_<ROLE>` and names any role whose provider credentials are missing. |
 

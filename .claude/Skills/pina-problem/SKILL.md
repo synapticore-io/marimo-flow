@@ -85,8 +85,10 @@ SubdomainSpec(name="t0",         bounds={"x": [-1.0, 1.0], "t": 0.0})
 
 | `kind` | fields | meaning |
 |---|---|---|
-| `fixed_value` | `subdomain`, `value` | homogeneous Dirichlet (use `0.0` for walls; non-zero for constant Dirichlet) |
+| `fixed_value` | `subdomain`, `value` | constant Dirichlet on **every** output (use `0.0` for scalar walls) |
+| `fixed_value` | `subdomain`, `values` | per-field Dirichlet, e.g. `{"ux": 1.0, "uy": 0.0, "uz": 0.0}` — other outputs (pressure) stay free. Use this whenever the problem has more than one output. |
 | `equation` | `subdomain`, `equation_name` OR `equation_inline` | apply an EquationSpec to the subdomain. Interior residuals and custom BC/IC expressions both use this. |
+| `equation` | `subdomain`, `equation_names` | enforce several equations together on one subdomain (PINA `SystemEquation`), e.g. `["mom_x", "mom_y", "mom_z", "continuity"]` in the interior. |
 
 ## Worked examples
 

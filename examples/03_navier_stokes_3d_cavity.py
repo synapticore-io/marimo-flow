@@ -3,30 +3,30 @@
 # dependencies = [
 #     # Pulls pina-mathlab, torch, plotly, ... Declared explicitly so marimo's
 #     # sandbox does not auto-install the unrelated PyPI package "pina".
-#     "marimo-flow>=0.4.4",
+#     "marimo-flow>=0.4.5",
 # ]
 # ///
 
-"""3D lid-driven cavity via the PINA composer.
+"""3D lid-driven cavity: steady incompressible Navier-Stokes via the composer.
 
 Run with:
     marimo edit examples/03_navier_stokes_3d_cavity.py
 
-Demonstrates the composition-first architecture end-to-end on a
-three-dimensional problem: no hardcoded ProblemKind, no built-in
-NS factory — just a declarative ProblemSpec, the sympy-backed
-composer, and PINA's FeedForward + PINN solver.
+The full system — three momentum equations plus continuity — is declared
+as a ProblemSpec, compiled at runtime by the sympy-backed composer and
+trained with PINA's PINN solver. Walls are no-slip on the velocity only;
+the pressure stays free.
 
-Keeps viscosity high and epochs low so the notebook runs in a few
-minutes on CPU. For real NS research bump n_points to 40k+, hidden
-width to 128+, and switch to LBFGS for the last stretch.
+Training is cached on disk (``mo.persistent_cache``): the first run on a
+CPU takes a while, re-opening the notebook is instant. For CI:
+    marimo export html examples/03_navier_stokes_3d_cavity.py -- --max-epochs 50
 """
 
 from __future__ import annotations
 
 import marimo
 
-__generated_with = "0.23.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -36,39 +36,67 @@ def _header():
 
     mo.md(
         "# Lid-driven cavity — 3D Navier–Stokes\n"
-        "Composed from primitives, no hardcoded PDE factory. Change a "
-        "viscosity, add an obstacle subdomain, whatever — re-run and the "
-        "composer rebuilds the PINA class at runtime."
+        "\n"
+        "Steady, incompressible flow in the unit cube. The lid at `z = 1` "
+        "moves in `x`; all other walls are no-slip. Unknowns: `ux, uy, uz, p`.\n"
+        "\n"
+        "$$(\\mathbf{u}\\cdot\\nabla)\\mathbf{u} + \\nabla p = "
+        "\\nu\\,\\nabla^2\\mathbf{u}, \\qquad \\nabla\\cdot\\mathbf{u} = 0$$\n"
+        "\n"
+        "Composed from primitives — no hardcoded PDE factory. The notebook "
+        "trains once with the defaults on load; change the settings and "
+        "press **Train** to run again."
     )
     return (mo,)
 
 
 @app.cell
 def _controls(mo):
-    viscosity = mo.ui.slider(
-        start=0.01, stop=1.0, step=0.01, value=0.1, label="ν (viscosity)"
-    )
-    lid_speed = mo.ui.slider(
-        start=0.1, stop=2.0, step=0.1, value=1.0, label="lid speed"
-    )
-    n_points = mo.ui.slider(
-        start=2000, stop=20000, step=2000, value=8000, label="collocation points"
-    )
-    hidden_width = mo.ui.slider(
-        start=32, stop=128, step=16, value=64, label="hidden width"
-    )
-    max_epochs = mo.ui.slider(start=5, stop=100, step=5, value=20, label="max epochs")
-    mo.vstack(
-        [
-            mo.hstack([viscosity, lid_speed]),
-            mo.hstack([n_points, hidden_width, max_epochs]),
-        ]
-    )
-    return (viscosity, lid_speed, n_points, hidden_width, max_epochs)
+    cavity_form = mo.ui.batch(
+        mo.md(
+            """
+            {viscosity} {lid_speed}
+
+            {n_points} {width} {depth} {epochs}
+            """
+        ),
+        {
+            "viscosity": mo.ui.slider(
+                start=0.01, stop=1.0, step=0.01, value=0.1, label="ν (viscosity)"
+            ),
+            "lid_speed": mo.ui.slider(
+                start=0.1, stop=2.0, step=0.1, value=1.0, label="lid speed"
+            ),
+            "n_points": mo.ui.slider(
+                start=500, stop=8000, step=500, value=2000, label="points per region"
+            ),
+            "width": mo.ui.slider(
+                start=32, stop=128, step=16, value=64, label="hidden width"
+            ),
+            "depth": mo.ui.slider(start=2, stop=6, step=1, value=4, label="layers"),
+            "epochs": mo.ui.slider(
+                start=10,
+                stop=5000,
+                step=10,
+                value=int(mo.cli_args().get("max-epochs", 3000)),
+                label="epochs (full-batch steps)",
+            ),
+        },
+    ).form(submit_button_label="Train", bordered=True)
+    cavity_form
+    return (cavity_form,)
 
 
 @app.cell
-def _build_spec(viscosity, lid_speed):
+def _cfg(cavity_form, mo):
+    cfg = cavity_form.value or cavity_form.element.value
+    reynolds = cfg["lid_speed"] / cfg["viscosity"]
+    mo.md(f"Reynolds number `Re = U·L/ν = {reynolds:.0f}`")
+    return cfg, reynolds
+
+
+@app.cell
+def _build_spec(cfg):
     from marimo_flow.agents.schemas import (
         ConditionSpec,
         DerivativeSpec,
@@ -77,134 +105,293 @@ def _build_spec(viscosity, lid_speed):
         SubdomainSpec,
     )
 
-    BOX = {"x": [0.0, 1.0], "y": [0.0, 1.0], "z": [0.0, 1.0]}
+    AXES = ("x", "y", "z")
+    VELOCITY = ("ux", "uy", "uz")
+    BOX = {a: [0.0, 1.0] for a in AXES}
+    WALLS = {
+        "floor": ("z", 0.0),
+        "xlow": ("x", 0.0),
+        "xhigh": ("x", 1.0),
+        "ylow": ("y", 0.0),
+        "yhigh": ("y", 1.0),
+    }
+
+    def momentum(comp: str, axis: str, nu: float) -> EquationSpec:
+        derivs = [DerivativeSpec(name=f"{comp}_{a}", field=comp, wrt=[a]) for a in AXES]
+        derivs += [
+            DerivativeSpec(name=f"{comp}_{a}{a}", field=comp, wrt=[a, a]) for a in AXES
+        ]
+        derivs.append(DerivativeSpec(name=f"p_{axis}", field="p", wrt=[axis]))
+        convection = " + ".join(
+            f"{v}*{comp}_{a}" for v, a in zip(VELOCITY, AXES, strict=True)
+        )
+        diffusion = " + ".join(f"{comp}_{a}{a}" for a in AXES)
+        return EquationSpec(
+            name=f"mom_{axis}",
+            form=f"{convection} + p_{axis} - nu*({diffusion})",
+            outputs=[*VELOCITY, "p"],
+            derivatives=derivs,
+            parameters={"nu": nu},
+        )
+
+    continuity = EquationSpec(
+        name="continuity",
+        form="ux_x + uy_y + uz_z",
+        outputs=list(VELOCITY),
+        derivatives=[
+            DerivativeSpec(name=f"{v}_{a}", field=v, wrt=[a])
+            for v, a in zip(VELOCITY, AXES, strict=True)
+        ],
+    )
 
     spec = ProblemSpec(
-        name=f"ns3d_cavity_nu{viscosity.value:.2f}",
-        output_variables=["ux", "uy", "uz", "p"],
+        name=f"ns3d_cavity_nu{cfg['viscosity']:.2f}",
+        output_variables=[*VELOCITY, "p"],
         domain_bounds=BOX,
         subdomains=[
             SubdomainSpec(name="D", bounds=BOX),
             SubdomainSpec(name="lid", bounds={**BOX, "z": 1.0}),
-            SubdomainSpec(name="floor", bounds={**BOX, "z": 0.0}),
-            SubdomainSpec(name="xlow", bounds={**BOX, "x": 0.0}),
-            SubdomainSpec(name="xhigh", bounds={**BOX, "x": 1.0}),
-            SubdomainSpec(name="ylow", bounds={**BOX, "y": 0.0}),
-            SubdomainSpec(name="yhigh", bounds={**BOX, "y": 1.0}),
-        ],
+        ]
+        + [SubdomainSpec(name=n, bounds={**BOX, a: v}) for n, (a, v) in WALLS.items()],
         equations=[
-            # Momentum in each direction (steady, incompressible).
-            EquationSpec(
-                name="mom_x",
-                form="ux*ux_x + uy*ux_y + uz*ux_z + p_x - nu*(ux_xx + ux_yy + ux_zz)",
-                outputs=["ux", "uy", "uz", "p"],
-                derivatives=[
-                    DerivativeSpec(name="ux_x", field="ux", wrt=["x"]),
-                    DerivativeSpec(name="ux_y", field="ux", wrt=["y"]),
-                    DerivativeSpec(name="ux_z", field="ux", wrt=["z"]),
-                    DerivativeSpec(name="ux_xx", field="ux", wrt=["x", "x"]),
-                    DerivativeSpec(name="ux_yy", field="ux", wrt=["y", "y"]),
-                    DerivativeSpec(name="ux_zz", field="ux", wrt=["z", "z"]),
-                    DerivativeSpec(name="p_x", field="p", wrt=["x"]),
-                ],
-                parameters={"nu": float(viscosity.value)},
-            ),
-            EquationSpec(
-                name="continuity",
-                form="ux_x + uy_y + uz_z",
-                outputs=["ux", "uy", "uz"],
-                derivatives=[
-                    DerivativeSpec(name="ux_x", field="ux", wrt=["x"]),
-                    DerivativeSpec(name="uy_y", field="uy", wrt=["y"]),
-                    DerivativeSpec(name="uz_z", field="uz", wrt=["z"]),
-                ],
-            ),
-        ],
+            momentum(c, a, float(cfg["viscosity"]))
+            for c, a in zip(VELOCITY, AXES, strict=True)
+        ]
+        + [continuity],
         conditions=[
-            ConditionSpec(subdomain="D", kind="equation", equation_name="mom_x"),
-            # Continuity lives on a second interior copy; see pina-multiphysics.
-            # For this demo we attach it inline to a distinct face to keep a
-            # single condition per subdomain name.
+            # Momentum (x, y, z) + continuity, all enforced in the interior.
             ConditionSpec(
-                subdomain="xhigh", kind="equation", equation_name="continuity"
+                subdomain="D",
+                kind="equation",
+                equation_names=["mom_x", "mom_y", "mom_z", "continuity"],
             ),
-            # Walls: u = 0 everywhere except the lid where ux = lid_speed.
-            ConditionSpec(subdomain="floor", kind="fixed_value", value=0.0),
-            ConditionSpec(subdomain="xlow", kind="fixed_value", value=0.0),
-            ConditionSpec(subdomain="ylow", kind="fixed_value", value=0.0),
-            ConditionSpec(subdomain="yhigh", kind="fixed_value", value=0.0),
+            # Velocity-only Dirichlet: the pressure is not pinned on walls.
             ConditionSpec(
-                subdomain="lid", kind="fixed_value", value=float(lid_speed.value)
+                subdomain="lid",
+                kind="fixed_value",
+                values={"ux": float(cfg["lid_speed"]), "uy": 0.0, "uz": 0.0},
             ),
+        ]
+        + [
+            ConditionSpec(
+                subdomain=n, kind="fixed_value", values=dict.fromkeys(VELOCITY, 0.0)
+            )
+            for n in WALLS
         ],
     )
-    return (spec,)
+    return ProblemSpec, spec
 
 
 @app.cell
 def _compose(spec):
     from marimo_flow.agents.services.composer import compose_problem
 
-    cls = compose_problem(spec)
-    problem = cls()
-    return (problem,)
+    problem = compose_problem(spec)()
+    return compose_problem, problem
 
 
 @app.cell
 def _show_domain(mo, problem):
     from marimo_flow.core.viz3d import domain_figure
 
-    domain_fig = domain_figure(problem)
-    mo.vstack([mo.md("## Spatial domain"), mo.ui.plotly(domain_fig)])
-    return (domain_fig,)
+    mo.vstack([mo.md("## Spatial domain"), mo.ui.plotly(domain_figure(problem))])
+    return
 
 
 @app.cell
-def _train(mo, problem, n_points, hidden_width, max_epochs):
+def _train(ProblemSpec, cfg, compose_problem, mo, problem, spec):
+    import time
+
+    import torch
+    from pina.callback import MetricTracker
+
     from marimo_flow.core import ModelManager, SolverManager, train_solver
 
-    model = ModelManager.create(
-        "feedforward",
-        problem=problem,
-        layers=[hidden_width.value, hidden_width.value, hidden_width.value],
+    def build_solver(target_problem, width: int, depth: int):
+        model = ModelManager.create(
+            "feedforward", problem=target_problem, layers=[width] * depth
+        )
+        solver = SolverManager.create(
+            "pinn", problem=target_problem, model=model, learning_rate=1e-3
+        )
+        return model, solver
+
+    @mo.persistent_cache
+    def train_cavity(spec_json: str, width: int, depth: int, epochs: int, points: int):
+        torch.manual_seed(0)
+        fresh = compose_problem(ProblemSpec.model_validate_json(spec_json))()
+        model, solver = build_solver(fresh, width, depth)
+        tracker = MetricTracker()
+        start = time.perf_counter()
+        trainer = train_solver(
+            solver,
+            max_epochs=epochs,
+            accelerator="cpu",
+            n_points=points,
+            sample_mode="latin",
+            callbacks=[tracker],
+        )
+        seconds = time.perf_counter() - start
+        state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+        metrics = {k: float(v) for k, v in trainer.callback_metrics.items()}
+        history = tracker.metrics["train_loss"].detach().cpu().numpy().tolist()
+        return state, metrics, history, seconds
+
+    with mo.status.spinner(title=f"Training {cfg['epochs']} steps on CPU ..."):
+        _state, metrics, loss_history, train_seconds = train_cavity(
+            spec.model_dump_json(),
+            int(cfg["width"]),
+            int(cfg["depth"]),
+            int(cfg["epochs"]),
+            int(cfg["n_points"]),
+        )
+    model, solver = build_solver(problem, int(cfg["width"]), int(cfg["depth"]))
+    model.load_state_dict(_state)
+    model.eval()
+    mo.vstack(
+        [
+            mo.md(f"## Training — {cfg['epochs']} steps, {train_seconds:.0f} s"),
+            mo.ui.table([metrics], selection=None),
+        ]
     )
-    solver = SolverManager.create(
-        "pinn", problem=problem, model=model, learning_rate=1e-3
-    )
-    trainer = train_solver(
-        solver,
-        max_epochs=max_epochs.value,
-        accelerator="cpu",
-        n_points=n_points.value,
-        sample_mode="latin",
-    )
-    metrics = {k: float(v) for k, v in trainer.callback_metrics.items()}
-    mo.vstack([mo.md("## Training metrics"), mo.ui.table([metrics])])
-    return (trainer, solver, metrics)
+    return loss_history, metrics, solver, torch, train_seconds
 
 
 @app.cell
-def _predict_slice(mo, solver):
+def _diagnostics(mo, problem, solver, torch):
     import numpy as np
-    import torch
     from pina.label_tensor import LabelTensor
 
-    grid = 24
-    xs = np.linspace(0, 1, grid)
-    ys = np.linspace(0, 1, grid)
-    X, Y = np.meshgrid(xs, ys)
-    Z = np.full_like(X, 0.5)  # mid-plane slice
-    coords = np.stack([X.flatten(), Y.flatten(), Z.flatten()], axis=1)
-    inp = LabelTensor(torch.tensor(coords, dtype=torch.float32), ["x", "y", "z"])
-    out = solver.forward(inp).detach().cpu().numpy()
-    ux_slice = out[:, 0].reshape(grid, grid)
+    def evaluate(points: np.ndarray) -> np.ndarray:
+        inp = LabelTensor(torch.tensor(points, dtype=torch.float32), ["x", "y", "z"])
+        with torch.no_grad():
+            return np.asarray(solver.forward(inp).tensor)
 
+    # PDE residuals of the trained network at fresh interior points, computed
+    # with the very equations the composer built (mom_x, mom_y, mom_z, cont).
+    _rng = np.random.default_rng(1)
+    _interior = LabelTensor(
+        torch.tensor(_rng.random((4000, 3)), dtype=torch.float32), ["x", "y", "z"]
+    )
+    _interior.requires_grad_(True)
+    _res = problem.conditions["D"].equation.residual(
+        _interior, solver.forward(_interior)
+    )
+    rms = np.sqrt((np.asarray(_res.detach().tensor) ** 2).mean(axis=0))
+    residual_rms = dict(
+        zip(["mom_x", "mom_y", "mom_z", "continuity"], rms.tolist(), strict=True)
+    )
+
+    # No-slip check on random wall points (floor + four side walls).
+    _w = _rng.random((5000, 3))
+    _axis = _rng.integers(0, 3, 5000)
+    _side = _rng.integers(0, 2, 5000).astype(float)
+    _w[np.arange(5000), _axis] = _side
+    _w = _w[~((_axis == 2) & (_side == 1.0))]  # drop lid points
+    _speed = np.linalg.norm(evaluate(_w)[:, :3], axis=1)
+    wall_slip = {
+        "rms": float(np.sqrt((_speed**2).mean())),
+        # The maximum sits on the lid edges, where the velocity jumps from
+        # the lid speed to zero (corner singularity of the cavity problem).
+        "max": float(_speed.max()),
+    }
+
+    mo.vstack(
+        [
+            mo.md("## Physics diagnostics (fresh points, not training points)"),
+            mo.hstack(
+                [
+                    mo.stat(f"{v:.1e}", label=f"RMS residual {k}")
+                    for k, v in residual_rms.items()
+                ]
+                + [
+                    mo.stat(
+                        f"{wall_slip['rms']:.3f}", label="RMS |u| on no-slip walls"
+                    ),
+                    mo.stat(
+                        f"{wall_slip['max']:.3f}",
+                        label="max |u| on walls (lid edges)",
+                    ),
+                ],
+                wrap=True,
+            ),
+        ]
+    )
+    return evaluate, np, residual_rms, wall_slip
+
+
+@app.cell
+def _centerline(cfg, evaluate, mo, np):
     import plotly.graph_objects as go
 
-    slice_fig = go.Figure(data=go.Heatmap(x=xs, y=ys, z=ux_slice, colorscale="Viridis"))
-    slice_fig.update_layout(title="u_x at z = 0.5 after training")
-    mo.ui.plotly(slice_fig)
-    return (slice_fig, ux_slice)
+    _s = np.linspace(0.0, 1.0, 101)
+    _half = np.full_like(_s, 0.5)
+    ux_centerline = evaluate(np.stack([_half, _half, _s], 1))[:, 0]
+    uz_centerline = evaluate(np.stack([_s, _half, _half], 1))[:, 2]
+    _i = int(ux_centerline.argmin())
+    return_flow = {"ux_min": float(ux_centerline[_i]), "z_at_min": float(_s[_i])}
+
+    _fig = go.Figure()
+    _fig.add_trace(go.Scatter(x=ux_centerline, y=_s, name="u_x(z) at x = y = 0.5"))
+    _fig.add_trace(go.Scatter(x=_s, y=uz_centerline, name="u_z(x) at y = z = 0.5"))
+    _fig.update_layout(
+        title=(
+            f"Centerline profiles — return flow u_x,min = {return_flow['ux_min']:.3f} "
+            f"at z = {return_flow['z_at_min']:.2f} (lid speed {cfg['lid_speed']})"
+        ),
+        xaxis_title="velocity / coordinate",
+        yaxis_title="coordinate / velocity",
+    )
+    mo.ui.plotly(_fig)
+    return return_flow, ux_centerline
+
+
+@app.cell
+def _slice(evaluate, go, mo, np):
+    _n = 41
+    _s = np.linspace(0.0, 1.0, _n)
+    _X, _Z = np.meshgrid(_s, _s)
+    _out = evaluate(np.stack([_X.ravel(), np.full(_X.size, 0.5), _Z.ravel()], 1))
+    slice_ux = _out[:, 0].reshape(_n, _n)
+    slice_uz = _out[:, 2].reshape(_n, _n)
+    _speed = np.hypot(slice_ux, slice_uz)
+
+    _step = 4
+    _fig = go.Figure(go.Heatmap(x=_s, y=_s, z=_speed, colorbar={"title": "|u|"}))
+    _fig.add_trace(
+        go.Scatter(
+            x=_X[::_step, ::_step].ravel(),
+            y=_Z[::_step, ::_step].ravel(),
+            mode="markers",
+            marker={
+                "symbol": "arrow",
+                "size": 10,
+                "angle": np.degrees(
+                    np.arctan2(slice_ux, slice_uz)[::_step, ::_step]
+                ).ravel(),
+                "color": "white",
+            },
+            showlegend=False,
+        )
+    )
+    _fig.update_layout(
+        title="Mid-plane y = 0.5: speed and flow direction (x, z)",
+        xaxis_title="x",
+        yaxis_title="z",
+        height=520,
+    )
+    mo.ui.plotly(_fig)
+    return slice_ux, slice_uz
+
+
+@app.cell
+def _loss(go, loss_history, mo):
+    _fig = go.Figure(go.Scatter(y=loss_history, mode="lines"))
+    _fig.update_layout(
+        title="Training loss", yaxis_type="log", xaxis_title="step", yaxis_title="loss"
+    )
+    mo.ui.plotly(_fig)
+    return
 
 
 if __name__ == "__main__":

@@ -61,7 +61,10 @@ No hardcoded `ProblemKind`. Agents compose PDEs from primitives:
 - `services/composer.py::compose_problem(ProblemSpec)` — compiles
   a `pina.Problem` subclass at runtime via `sympy.lambdify` +
   `pina.operator.grad/laplacian`. Auto-detects forward vs inverse
-  by residual-signature length (2 vs 3 args).
+  by residual-signature length (2 vs 3 args). `fixed_value` + `value` pins
+  *all* outputs; use `values={"ux": 1.0, ...}` for per-field Dirichlet and
+  `equation_names=[...]` (PINA `SystemEquation`) for coupled equations on
+  one subdomain.
 - `services/mesh_domain.py::MeshDomain` — PINA `DomainInterface`
   adapter over `meshio`; barycentric sampling per cell kind.
 - `services/design.py::ConstraintAggregator` — penalty +
@@ -78,7 +81,10 @@ No hardcoded `ProblemKind`. Agents compose PDEs from primitives:
 
 Demo notebooks: `examples/03_navier_stokes_3d_cavity.py` (3D NS via
 composer), `examples/04_mpc_heat_rod.py` (closed-loop MPC on a heat
-surrogate).
+surrogate). 01/03/04 train on load (settings in a `mo.ui.form`, defaults
+until submitted) and cache weights with `mo.persistent_cache`; CI passes
+`-- --epochs/--max-epochs` to shrink runs, Pages renders the defaults.
+`test_demos_compose.py` calls the 03 spec cell directly (`cell.run()`).
 
 ## Agents (`src/marimo_flow/agents/`)
 
@@ -136,7 +142,7 @@ Infrastructure:
   `model_dump(mode="json")` so snapshots round-trip through JSON.
 
 Testing:
-- `tests/agents/test_*.py` — 233 passing, 0 xfailed (baseline 2026-11-06; 241 in the full suite).
+- `tests/agents/test_*.py` — 237 passing, 0 xfailed (baseline 2026-11-06; 245 in the full suite).
 - `test_demos_compose.py` smoke-tests the notebook spec paths so
   schema drift breaks the test suite, not the user-facing demos.
 - Nodes that use MCP toolsets (Notebook, MLflow): stub `build_*_mcp` with

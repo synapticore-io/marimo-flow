@@ -409,3 +409,94 @@ def test_compose_emits_meaningful_class_name():
         )
     )
     assert anon.__name__ == "ComposedProblem"
+
+
+def _vector_spec(conditions: list[ConditionSpec]) -> ProblemSpec:
+    box = {"x": [0.0, 1.0], "y": [0.0, 1.0]}
+    return ProblemSpec(
+        name="vector_2d",
+        output_variables=["ux", "uy", "p"],
+        domain_bounds=box,
+        subdomains=[
+            SubdomainSpec(name="D", bounds=box),
+            SubdomainSpec(name="lid", bounds={**box, "y": 1.0}),
+        ],
+        equations=[
+            EquationSpec(
+                name="continuity",
+                form="ux_x + uy_y",
+                outputs=["ux", "uy"],
+                derivatives=[
+                    DerivativeSpec(name="ux_x", field="ux", wrt=["x"]),
+                    DerivativeSpec(name="uy_y", field="uy", wrt=["y"]),
+                ],
+            ),
+            EquationSpec(name="gauge", form="p", outputs=["p"]),
+        ],
+        conditions=conditions,
+    )
+
+
+def _labelled(values: list[list[float]], labels: list[str]):
+    from pina import LabelTensor
+
+    return LabelTensor(torch.tensor(values, requires_grad=True), labels)
+
+
+def test_fixed_value_per_field_leaves_other_outputs_free():
+    cls = compose_problem(
+        _vector_spec(
+            [
+                ConditionSpec(
+                    subdomain="lid",
+                    kind="fixed_value",
+                    values={"ux": 1.0, "uy": 0.0},
+                )
+            ]
+        )
+    )
+    eq = cls.conditions["lid"].equation
+    inp = _labelled([[0.3, 1.0]], ["x", "y"])
+    out = _labelled([[0.25, 0.5, 7.0]], ["ux", "uy", "p"])
+    residual = eq.residual(inp, out)
+    # ux - 1 and uy - 0; the pressure (7.0) is not pinned.
+    assert residual.tolist() == [[-0.75, 0.5]]
+
+
+def test_fixed_value_rejects_unknown_field():
+    spec = _vector_spec(
+        [ConditionSpec(subdomain="lid", kind="fixed_value", values={"uz": 0.0})]
+    )
+    with pytest.raises(ValueError, match="uz"):
+        compose_problem(spec)
+
+
+def test_equation_names_enforce_a_system_on_one_subdomain():
+    cls = compose_problem(
+        _vector_spec(
+            [
+                ConditionSpec(
+                    subdomain="D",
+                    kind="equation",
+                    equation_names=["continuity", "gauge"],
+                )
+            ]
+        )
+    )
+    inp = _labelled([[0.2, 0.4], [0.6, 0.8]], ["x", "y"])
+    x, y = inp.extract(["x"]), inp.extract(["y"])
+    from pina import LabelTensor
+
+    out = LabelTensor(torch.cat([2 * x, 3 * y, x + y], dim=1), ["ux", "uy", "p"])
+    residual = cls.conditions["D"].equation.residual(inp, out)
+    # continuity: d(2x)/dx + d(3y)/dy = 5; gauge: p = x + y.
+    expected = [[5.0, 0.6], [5.0, 1.4]]
+    assert torch.allclose(residual, torch.tensor(expected))
+
+
+def test_equation_names_rejects_unknown_equation():
+    spec = _vector_spec(
+        [ConditionSpec(subdomain="D", kind="equation", equation_names=["nope"])]
+    )
+    with pytest.raises(ValueError, match="nope"):
+        compose_problem(spec)
