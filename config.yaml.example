@@ -3,12 +3,10 @@
 # ``marimo-flow.yaml`` or point ``$MARIMO_FLOW_CONFIG`` at any file.
 #
 # Model specs use pydantic-ai's provider prefix: "<provider>:<model>".
-# Supported providers (pydantic-ai 1.84+):
-#   openai, anthropic, google-gla, google-vertex, groq, mistral, cohere,
-#   bedrock, huggingface, ollama, deepseek, openrouter, vercel, azure,
-#   cerebras, xai, moonshotai, fireworks, together, heroku, github,
-#   litellm, nebius, ovhcloud, alibaba, sambanova, outlines,
-#   sentence-transformers, voyageai.
+# Any provider pydantic-ai's ``infer_model`` knows works. The base install
+# only ships the OpenAI SDK (openai, ollama, openrouter, deepseek, together,
+# fireworks, azure, ... work as-is); native-SDK providers need their extra,
+# e.g. ``uv add "pydantic-ai-slim[anthropic]"`` for ``anthropic:``.
 #
 # Each provider reads its own auth from the standard env var
 # (OPENAI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY, OLLAMA_BASE_URL, ...).

@@ -120,7 +120,7 @@ Infrastructure:
   the circular-ref crash; opt out with `MLFLOW_PYDANTIC_AI_AUTOLOG=0`)
 - Provenance: DuckDB at `./provenance.duckdb` (configurable via
   `MARIMO_FLOW_PROVENANCE_DB` or `config.yaml`'s `provenance.db_path`).
-  DuckDB 1.5.2 ships transitively via `marimo[sql]` — no extra project dep.
+  DuckDB 2.0 ships transitively via `marimo[sql]` — no extra project dep.
 - LLMs: pydantic-ai `infer_model` with provider-prefixed specs; role→spec in
   `agents.deps.DEFAULT_MODELS` (10 roles: route, triage, notebook, problem,
   model, solver, training, validation, mlflow, lead).
@@ -136,7 +136,7 @@ Infrastructure:
   `model_dump(mode="json")` so snapshots round-trip through JSON.
 
 Testing:
-- `tests/agents/test_*.py` — 225 passing, 0 xfailed (baseline 2026-06-10).
+- `tests/agents/test_*.py` — 233 passing, 0 xfailed (baseline 2026-11-06; 241 in the full suite).
 - `test_demos_compose.py` smoke-tests the notebook spec paths so
   schema drift breaks the test suite, not the user-facing demos.
 - Nodes that use MCP toolsets (Notebook, MLflow): stub `build_*_mcp` with

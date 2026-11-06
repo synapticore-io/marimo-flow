@@ -27,3 +27,16 @@ def test_lead_chat_factory_returns_callable(monkeypatch):
     monkeypatch.setattr("marimo_flow.agents.lead._ensure_autolog", lambda: None)
     fn = lead_chat(model=TestModel())
     assert callable(fn)
+
+
+def test_lead_chat_passes_deps_to_lead_agent(monkeypatch):
+    seen = {}
+
+    def _fake_build(*, model=None, deps=None):
+        seen["deps"] = deps
+        return object()
+
+    monkeypatch.setattr("marimo_flow.agents.chat.build_lead_agent", _fake_build)
+    deps = FlowDeps(provenance_db_path=":memory:")
+    lead_chat(deps=deps)
+    assert seen["deps"] is deps

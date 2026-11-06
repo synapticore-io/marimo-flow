@@ -2,11 +2,9 @@
 
 Model specs are provider-prefixed strings (e.g. ``"ollama:qwen3-coder:480b-cloud"``,
 ``"anthropic:claude-sonnet-4-6"``, ``"openai:gpt-5"``). Resolution is delegated
-to ``pydantic_ai.models.infer_model`` which supports the full pydantic-ai
-provider catalogue: openai, anthropic, google-gla, google-vertex, groq, mistral,
-cohere, bedrock, huggingface, ollama, deepseek, openrouter, vercel, azure,
-cerebras, xai, moonshotai, fireworks, together, heroku, github, litellm, nebius,
-ovhcloud, alibaba, sambanova, outlines, sentence-transformers, voyageai.
+to ``pydantic_ai.models.infer_model``, so every pydantic-ai provider works.
+The base install ships only the OpenAI SDK; native-SDK providers (anthropic,
+google, groq, mistral, ...) need their ``pydantic-ai-slim[<extra>]``.
 
 Configuration resolution (highest wins):
 
@@ -187,21 +185,19 @@ def resolve_provenance_db_path(config: dict[str, Any] | None = None) -> str:
     return DEFAULT_PROVENANCE_DB_PATH
 
 
-def _ensure_ollama_base_url() -> None:
-    """pydantic_ai.OllamaProvider reads OLLAMA_BASE_URL; seed a local default."""
-    if "OLLAMA_BASE_URL" not in os.environ:
-        os.environ["OLLAMA_BASE_URL"] = DEFAULT_OLLAMA_BASE_URL
-
-
 def get_model(role: str, *, override: str | None = None) -> Model:
     """Resolve a role to a pydantic-ai ``Model``.
 
     ``override`` is a spec string that short-circuits the role lookup,
     typically passed as ``override=ctx.deps.models[role]`` from a Node so
     each FlowDeps instance can hold its own per-run model assignment.
+
+    Only ``ollama:`` specs get a local ``OLLAMA_BASE_URL`` default seeded;
+    every other provider is resolved untouched by ``infer_model``.
     """
-    _ensure_ollama_base_url()
     spec = override or resolve_models()[role]
+    if spec.startswith("ollama:"):
+        os.environ.setdefault("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
     return infer_model(spec)
 
 

@@ -205,3 +205,26 @@ async def test_aclose_closes_cached_clients(monkeypatch):
     await deps.aclose()
     assert closed == ["closed"]
     assert deps.model_cache == {}
+
+
+@pytest.mark.parametrize(
+    ("spec", "system", "model_name", "key_env"),
+    [
+        ("openai:gpt-5", "openai", "gpt-5", "OPENAI_API_KEY"),
+        (
+            "openrouter:anthropic/claude-sonnet-4.6",
+            "openrouter",
+            "anthropic/claude-sonnet-4.6",
+            "OPENROUTER_API_KEY",
+        ),
+    ],
+)
+def test_non_ollama_role_resolves_without_ollama_env(
+    monkeypatch, spec, system, model_name, key_env
+):
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    monkeypatch.setenv(key_env, "test-key")
+    monkeypatch.setenv("MARIMO_FLOW_MODEL_VALIDATION", spec)
+    model = FlowDeps(provenance_db_path=":memory:").model_for("validation")
+    assert (model.system, model.model_name) == (system, model_name)
+    assert "OLLAMA_BASE_URL" not in os.environ

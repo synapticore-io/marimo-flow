@@ -29,3 +29,12 @@ async def test_lead_agent_skips_workflow_when_model_responds_directly(monkeypatc
     )
     result = await agent.run("just say hi")
     assert "hi" in result.output.lower()
+
+
+def test_lead_agent_uses_deps_lead_model(monkeypatch):
+    monkeypatch.setattr("marimo_flow.agents.lead._ensure_autolog", lambda: None)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    deps = FlowDeps(provenance_db_path=":memory:")
+    deps.models["lead"] = "openai:gpt-5"
+    agent = build_lead_agent(deps=deps)
+    assert (agent.model.system, agent.model.model_name) == ("openai", "gpt-5")

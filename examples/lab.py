@@ -26,27 +26,55 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    base_url = mo.ui.text("http://localhost:11434/v1", label="Ollama base_url")
-    mlflow_uri = mo.ui.text("sqlite:///mlruns.db", label="MLflow tracking URI")
-    marimo_mcp = mo.ui.text("http://127.0.0.1:2718/mcp/server", label="marimo MCP URL")
-    mo.vstack([base_url, mlflow_uri, marimo_mcp])
-    return base_url, mlflow_uri, marimo_mcp
+    from marimo_flow.agents.deps import (
+        DEFAULT_MODELS,
+        resolve_marimo_mcp_url,
+        resolve_mlflow_tracking_uri,
+    )
+
+    mlflow_uri = mo.ui.text(resolve_mlflow_tracking_uri(), label="MLflow tracking URI")
+    marimo_mcp = mo.ui.text(resolve_marimo_mcp_url(), label="marimo MCP URL")
+    mo.vstack([mlflow_uri, marimo_mcp])
+    return DEFAULT_MODELS, marimo_mcp, mlflow_uri
 
 
 @app.cell
-def _(base_url, mlflow_uri, marimo_mcp):
-    import os
-
-    os.environ["OLLAMA_BASE_URL"] = base_url.value
-
+def _(DEFAULT_MODELS, marimo_mcp, mlflow_uri, mo):
     from marimo_flow.agents import FlowDeps, build_graph, lead_chat
 
+    # Models come from config.yaml / MARIMO_FLOW_MODEL_<ROLE> / DEFAULT_MODELS.
     deps = FlowDeps(
         mlflow_tracking_uri=mlflow_uri.value,
         marimo_mcp_url=marimo_mcp.value,
     )
+    unresolved = {}
+    for _role in deps.models:
+        try:
+            deps.model_for(_role)
+        except Exception as _exc:  # missing API key / provider SDK / unknown provider
+            unresolved[_role] = _exc
+    mo.stop(
+        bool(unresolved),
+        mo.callout(
+            mo.md(
+                "**Some roles have no usable model.** Set `models.<role>` in "
+                "`config.yaml` or `MARIMO_FLOW_MODEL_<ROLE>`, plus the "
+                "provider's API key env var.\n\n"
+                + "\n".join(
+                    f"- `{r}`: `{deps.models[r]}` (default `{DEFAULT_MODELS[r]}`) → {e}"
+                    for r, e in unresolved.items()
+                )
+            ),
+            kind="danger",
+        ),
+    )
     chat_fn = lead_chat(deps=deps)
     graph = build_graph()
+    mo.ui.table(
+        [{"role": r, "model": s} for r, s in deps.models.items()],
+        label="Resolved models",
+        selection=None,
+    )
     return chat_fn, deps, graph
 
 
