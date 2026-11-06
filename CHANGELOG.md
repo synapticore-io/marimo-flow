@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - pydantic-ai renamed the `google-gla:` prefix to `google:`. Docs (`deps.py`, `config.yaml.example`) no longer list provider names and point at pydantic-ai's catalogue instead.
 - README: new "One provider per role" section — precedence (env > `config.yaml` > default), a mixed-provider example, and which providers need an extra (`anthropic`, `groq`, …) because the base install ships only the OpenAI SDK.
 
+### Removed
+- `.github/workflows/claude-code.yml` (`@claude` on issues/PRs): it failed on every run since `claude-code-action` dropped its `mcp_servers` / `allowed_tools` / `custom_instructions` inputs, and it was not a required check. The matching sections in `docs/mcp-setup.md` are gone too.
+
 ### Added
 - **`providers` extra**: `pip install "marimo-flow[providers]"` adds the native pydantic-ai SDKs for `anthropic:`, `google:`, `groq:`, `mistral:` and `xai:` models. OpenAI-compatible providers (`openai:`, `ollama:`, `openrouter:`, …) keep working with the base install.
 - **Composer: per-field Dirichlet values and equation systems.** `ConditionSpec(kind="fixed_value", values={"ux": 1.0, "uy": 0.0})` pins only the named outputs (PINA `FixedValue(components=...)`); `ConditionSpec(kind="equation", equation_names=[...])` enforces several equations on one subdomain via PINA's `SystemEquation`. The `pina-problem` / `pina-multiphysics` skills and the problem toolset docstring tell the agents about both.

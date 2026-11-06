@@ -12,7 +12,6 @@ Complete guide for setting up Model Context Protocol (MCP) servers with marimo-f
   - [Claude Desktop](#claude-desktop)
   - [VSCode](#vscode)
   - [Cursor](#cursor)
-  - [GitHub Actions](#github-actions)
 - [MCP Tools Reference](#mcp-tools-reference)
 - [Troubleshooting](#troubleshooting)
 
@@ -82,7 +81,6 @@ Choose your environment:
 - [Claude Desktop](#claude-desktop) - Full MCP support
 - [VSCode](#vscode) - Marimo extension + tasks
 - [Cursor](#cursor) - AI coding with custom rules
-- [GitHub Actions](#github-actions) - CI/CD with MCP
 
 ---
 
@@ -401,89 +399,6 @@ Cursor has **advanced AI features** with custom rules support.
 
 ---
 
-### GitHub Actions
-
-GitHub Actions has **full MCP support** via `claude-code-action`.
-
-#### Workflow Configuration
-
-**`.github/workflows/claude-code.yml`** (already configured)
-
-**Triggers**:
-- `@claude` mentions in issues/PRs
-- New PRs opened
-- PR synchronize (new commits)
-
-**Services Started**:
-1. MLflow server (port 5000)
-2. Marimo with MCP (port 2718)
-3. MLflow MCP server (stdio)
-
-**MCP Servers Configured**:
-```yaml
-mcp_servers: |
-  [
-    {
-      "name": "marimo",
-      "transport": "http",
-      "url": "http://localhost:2718/mcp/server"
-    },
-    {
-      "name": "context7",
-      "transport": "sse",
-      "url": "https://context7.com/api/v1/mcp/sse"
-    },
-    {
-      "name": "mlflow",
-      "transport": "stdio",
-      "command": "mlflow",
-      "args": ["mcp", "run"],
-      "env": {
-        "MLFLOW_TRACKING_URI": "http://localhost:5000"
-      }
-    }
-  ]
-```
-
-#### Setup
-
-1. **Add GitHub Secret**:
-   ```
-   Repository → Settings → Secrets → Actions
-   Name: ANTHROPIC_API_KEY
-   Value: sk-ant-api03-...
-   ```
-
-2. **Test Workflow**:
-   - Create issue: `@claude Analyze the PINA solver notebook`
-   - Create PR comment: `@claude Review this change`
-
-#### Example Usage
-
-**Issue Comment**:
-```markdown
-@claude Analyze notebook 01_pina_poisson_solver.py for performance issues
-```
-
-Claude will:
-1. Use `get_active_notebooks` to find the notebook
-2. Use `get_notebook_errors` to check for errors
-3. Use `get_tables_and_variables` to analyze data
-4. Provide performance recommendations
-
-**PR Review**:
-```markdown
-@claude Review this PR and ensure it follows marimo best practices
-```
-
-Claude will:
-1. Read changed files
-2. Check for reactivity issues
-3. Verify MLflow logging
-4. Suggest improvements
-
----
-
 ## MCP Tools Reference
 
 ### Marimo MCP Tools
@@ -735,23 +650,6 @@ curl -s http://localhost:5000/health && curl -sI http://localhost:2718
 tail -f ~/Library/Logs/Claude/main.log
 ```
 
-### GitHub Actions Failing
-
-**Symptom**: `claude-code.yml` workflow fails
-
-**Solutions**:
-1. **Check ANTHROPIC_API_KEY secret is set**:
-   - Settings → Secrets → Actions
-   - Verify `ANTHROPIC_API_KEY` exists
-
-2. **Check workflow logs**:
-   - Actions tab → Failed workflow → View logs
-
-3. **Common issues**:
-   - Timeout waiting for services (increase wait time)
-   - Port conflicts (use different ports in CI)
-   - Missing dependencies (check `uv sync` step)
-
 ---
 
 ## Advanced Usage
@@ -800,7 +698,6 @@ MLFLOW_MCP_DEBUG=1 mlflow mcp run
 - [Model Context Protocol Specification](https://modelcontextprotocol.io/)
 - [MLflow MCP Guide](https://mlflow.org/docs/latest/mcp.html)
 - [Context7 Documentation](https://context7.com/docs)
-- [Claude Code Action](https://github.com/anthropics/claude-code-action)
 
 ---
 
