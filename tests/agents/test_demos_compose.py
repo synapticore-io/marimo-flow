@@ -51,10 +51,14 @@ def test_ns3d_cavity_demo_composes_full_navier_stokes():
     )
     # Momentum x/y/z + continuity in the interior.
     assert problem.conditions["D"].equation.residual(pts, out).shape == (16, 4)
-    # Lid pins the three velocity components to (1, 0, 0), not the pressure.
+    # Lid pins the velocity to the smooth profile (U*(16x(1-x)y(1-y))^2, 0, 0),
+    # not the pressure.
     lid = problem.conditions["lid"].equation.residual(pts, out)
-    expected = out.extract(["ux", "uy", "uz"]) - torch.tensor([1.0, 0.0, 0.0])
-    assert torch.allclose(lid, expected)
+    profile = (16 * x * (1 - x) * y * (1 - y)) ** 2
+    expected = out.extract(["ux", "uy", "uz"]) - torch.cat(
+        [profile, torch.zeros_like(x), torch.zeros_like(x)], dim=1
+    )
+    assert torch.allclose(lid, expected, atol=1e-6)
 
 
 def test_heat_rod_demo_composes_and_mpc_step_runs():

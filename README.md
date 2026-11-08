@@ -239,14 +239,14 @@ All notebooks live in `examples/` and open with
 **Train** reruns with new values. Trained weights are cached on disk via
 `mo.persistent_cache` (`examples/__marimo__/cache/`), so re-opening a notebook
 or returning to an earlier configuration skips training. Shrink a run without
-editing code: `marimo export html examples/03_navier_stokes_3d_cavity.py -- --max-epochs 50`
+editing code: `marimo export html examples/03_navier_stokes_3d_cavity.py -- --max-epochs 50 --lbfgs-epochs 2 --fd-grid 16`
 (01: `--epochs`, `--trials`, `--trial-epochs`; 04: `--max-epochs`).
 
 | Notebook | What it does |
 |---|---|
 | **`01_pina_poisson_solver.py`** | Poisson / heat / wave PDE with baseline PINN or Walrus foundation model; solution plot and, for Poisson, the error against the exact solution. MLflow + Optuna sweep analytics. Uses `marimo_flow.core` directly. |
 | **`02_provenance_dashboard.py`** | DuckDB review surface over the agent provenance store. Five tables (tasks, experiments, decisions, validation, handoffs) + 3D preset preview. |
-| **`03_navier_stokes_3d_cavity.py`** | Steady incompressible Navier–Stokes in a 3D lid-driven cavity (three momentum equations + continuity, velocity-only no-slip walls), composed from a declarative `ProblemSpec`. Shows PDE residuals at fresh points, wall slip, centerline profiles and the mid-plane flow. |
+| **`03_navier_stokes_3d_cavity.py`** | Steady incompressible Navier–Stokes in a 3D lid-driven cavity (three momentum equations + continuity, smooth lid), composed from a declarative `ProblemSpec`. Walls and lid are hard constraints of the network; Adam + L-BFGS. Validated against an independent finite-difference solver (`marimo_flow.core.cavity_reference`): 1.9 % relative L2 error at Re = 10, about 25 min CPU training. Also shows PDE residuals, centerline profiles and the mid-plane flow. |
 | **`04_mpc_heat_rod.py`** | Closed-loop MPC on a 1D heat-rod PINN surrogate. Trains the surrogate, then drives a rolling-horizon scipy-SLSQP MPC loop toward a temperature setpoint. |
 | **`lab.py`** | Multi-agent PINA team chat demo. Uses the models from `config.yaml` / `MARIMO_FLOW_MODEL_<ROLE>` and names any role whose provider credentials are missing. |
 
