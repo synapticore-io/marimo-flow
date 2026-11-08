@@ -93,5 +93,5 @@ jobs:
               -o "/tmp/$name.html" --no-sandbox -f -- "$@"
           }
           run 01_pina_poisson_solver --epochs 50 --trials 2 --trial-epochs 20
-          run 03_navier_stokes_3d_cavity --max-epochs 50
+          run 03_navier_stokes_3d_cavity --max-epochs 50 --lbfgs-epochs 2 --fd-grid 16
           run 04_mpc_heat_rod --max-epochs 20

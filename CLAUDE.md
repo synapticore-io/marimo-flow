@@ -86,6 +86,15 @@ until submitted) and cache weights with `mo.persistent_cache`; CI passes
 `-- --epochs/--max-epochs` to shrink runs, Pages renders the defaults.
 `test_demos_compose.py` calls the 03 spec cell directly (`cell.run()`).
 
+03 is validated, not just plausible: `core/cavity_reference.py` is an
+independent FD solver (MAC + Chorin + DCT Poisson; matches Oueslati 2011 at
+Re=100, see `tests/test_cavity_reference.py`). What made the PINN match it
+(1.9 % rel. L2 at Re=10): smooth lid profile (the uniform lid's edge jump is
+unlearnable), walls/lid as hard constraints `u = g + d·N` with the loss on
+the PDE condition only, Adam (lr 1e-3 → 1e-4) then L-BFGS. Soft BC losses
+stayed at 35–46 % error. Cap torch at ~6 threads for this size — 16 threads
+ran 3× slower.
+
 ## Agents (`src/marimo_flow/agents/`)
 
 Multi-agent PINA team on `pydantic-graph` with 9 nodes:
@@ -142,7 +151,7 @@ Infrastructure:
   `model_dump(mode="json")` so snapshots round-trip through JSON.
 
 Testing:
-- `tests/agents/test_*.py` — 237 passing, 0 xfailed (baseline 2026-11-06; 245 in the full suite).
+- `tests/agents/test_*.py` — 237 passing, 0 xfailed (baseline 2026-11-06; 247 in the full suite).
 - `test_demos_compose.py` smoke-tests the notebook spec paths so
   schema drift breaks the test suite, not the user-facing demos.
 - Nodes that use MCP toolsets (Notebook, MLflow): stub `build_*_mcp` with
